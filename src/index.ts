@@ -1,9 +1,7 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
-import { createMiddleware } from "hono/factory";
-import Database from "better-sqlite3";
-import fs from "node:fs";
-import path from "node:path";
+import { assertProductionToken, isAuthGateOpen, tokenGate } from "./auth.js";
+import { openDb } from "./db.js";
 import { migrateRuntime } from "./runtime/store.js";
 import {
   listRuntimes,
@@ -12,55 +10,40 @@ import {
   statusRuntime,
   stopRuntime,
 } from "./runtime/service.js";
+import { botsRoutes } from "./routes/bots.js";
+import { groupsRoutes } from "./routes/groups.js";
+import { threadsRoutes } from "./routes/threads.js";
+import { dispatcherRoutes } from "./routes/dispatcher.js";
+import { credRoutes } from "./routes/cred.js";
+import { capabilitiesRoutes } from "./routes/capabilities.js";
+
+assertProductionToken();
 
 const port = Number(process.env.PORT ?? 3000);
 const dbPath = process.env.DATABASE_PATH ?? "./data/oss-bot.sqlite";
-const token = process.env.OSS_BOT_TOKEN ?? "";
 const botRuntime = process.env.BOT_RUNTIME ?? "docker";
 const dockerHostConfigured = Boolean(process.env.DOCKER_HOST);
 const sockOverlay = process.env.DOCKER_SOCK_OVERLAY === "1";
 const credBridgeMounts = process.env.CRED_BRIDGE_MOUNTS === "1";
 
-if (process.env.NODE_ENV === "production") {
-  if (!token || token.startsWith("change-me")) {
-    console.error("OSS_BOT_TOKEN must be a non-default value in production");
-    process.exit(1);
-  }
-  if (sockOverlay) {
-    console.error("DOCKER_SOCK_OVERLAY must not be enabled in production");
-    process.exit(1);
-  }
-} else if (!token) {
-  console.warn("WARN: OSS_BOT_TOKEN is empty — protected routes will return 401");
+if (process.env.NODE_ENV === "production" && sockOverlay) {
+  console.error("DOCKER_SOCK_OVERLAY must not be enabled in production");
+  process.exit(1);
 }
 
-fs.mkdirSync(path.dirname(path.resolve(dbPath)), { recursive: true });
-const db = new Database(dbPath);
-db.exec(`
-  CREATE TABLE IF NOT EXISTS meta (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL
-  );
-`);
-db.prepare(
-  `INSERT INTO meta (key, value) VALUES ('schema_version', '1')
-   ON CONFLICT(key) DO NOTHING`
-).run();
+const db = openDb(dbPath);
 migrateRuntime(db);
-
-const tokenGate = createMiddleware(async (c, next) => {
-  const header =
-    c.req.header("authorization")?.replace(/^Bearer\s+/i, "") ??
-    c.req.header("x-oss-bot-token") ??
-    "";
-  if (!token || header !== token) {
-    return c.json({ error: "unauthorized" }, 401);
-  }
-  await next();
-});
 
 const app = new Hono();
 
+function authGatePublic() {
+  return {
+    configured: isAuthGateOpen(),
+    gate: isAuthGateOpen() ? ("open" as const) : ("closed" as const),
+  };
+}
+
+/** Public health only — no /api/v1 without AuthGate */
 app.get("/healthz", (c) => {
   try {
     const ok = (db.prepare("SELECT 1 AS ok").get() as { ok: number }).ok === 1;
@@ -75,6 +58,7 @@ app.get("/healthz", (c) => {
       docker_host_configured: dockerHostConfigured,
       sock_overlay: sockOverlay,
       cred_bridge_mounts: credBridgeMounts,
+      auth_gate: authGatePublic().gate,
     });
   } catch (err) {
     console.error("healthz failed", err);
@@ -82,12 +66,17 @@ app.get("/healthz", (c) => {
   }
 });
 
-app.get("/api/v1/me", tokenGate, (c) =>
+/**
+ * AuthGate: ALL /api/v1/* require shared token.
+ * UI AuthGate empty-state uses /healthz.auth_gate + local token presence — never a public API.
+ */
+app.use("/api/v1/*", tokenGate);
+
+app.get("/api/v1/me", (c) =>
   c.json({ ok: true, auth: "token", bot_runtime: botRuntime })
 );
 
-/** Runtime adapter summary (CP-aligned flags; no secret paths/values). */
-app.get("/api/v1/runtime", tokenGate, (c) =>
+app.get("/api/v1/runtime", (c) =>
   c.json({
     ok: true,
     ...runtimeMeta(),
@@ -97,31 +86,45 @@ app.get("/api/v1/runtime", tokenGate, (c) =>
   })
 );
 
-app.post("/api/v1/runtime/start", tokenGate, async (c) => {
+app.post("/api/v1/runtime/start", async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as {
     bot_id?: string;
     mode?: "docker" | "local";
     image?: string;
   };
   const result = startRuntime(db, body);
-  if (!result.ok) return c.json({ ok: false, error: result.error }, result.status as 400 | 404 | 500 | 503);
+  if (!result.ok) {
+    return c.json({ ok: false, error: result.error }, result.status as 400 | 404 | 500 | 503);
+  }
   return c.json({ ok: true, handle: result.handle }, 201);
 });
 
-app.post("/api/v1/runtime/:id/stop", tokenGate, (c) => {
+app.post("/api/v1/runtime/:id/stop", (c) => {
   const result = stopRuntime(db, c.req.param("id"));
-  if (!result.ok) return c.json({ ok: false, error: result.error }, result.status as 400 | 404 | 500 | 503);
+  if (!result.ok) {
+    return c.json({ ok: false, error: result.error }, result.status as 400 | 404 | 500 | 503);
+  }
   return c.json({ ok: true, handle: result.handle });
 });
 
-app.get("/api/v1/runtime/:id/status", tokenGate, (c) => {
+app.get("/api/v1/runtime/:id/status", (c) => {
   const result = statusRuntime(db, c.req.param("id"));
-  if (!result.ok) return c.json({ ok: false, error: result.error }, result.status as 400 | 404 | 500 | 503);
+  if (!result.ok) {
+    return c.json({ ok: false, error: result.error }, result.status as 400 | 404 | 500 | 503);
+  }
   return c.json({ ok: true, handle: result.handle });
 });
+
+// Control plane (PR #19 modules) — gated by app.use('/api/v1/*', tokenGate) above
+app.route("/api/v1/bots", botsRoutes);
+app.route("/api/v1/groups", groupsRoutes);
+app.route("/api/v1/threads", threadsRoutes);
+app.route("/api/v1/dispatcher", dispatcherRoutes);
+app.route("/api/v1/cred", credRoutes);
+app.route("/api/v1/runtime", capabilitiesRoutes);
 
 serve({ fetch: app.fetch, port }, () => {
   console.log(
-    `oss-bot listening on :${port} (sqlite=${dbPath}, bot_runtime=${botRuntime}, sock_overlay=${sockOverlay})`
+    `oss-bot listening on :${port} (sqlite=${dbPath}, auth_gate=${authGatePublic().gate}, bot_runtime=${botRuntime})`
   );
 });
