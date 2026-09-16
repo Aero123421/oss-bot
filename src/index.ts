@@ -17,6 +17,7 @@ import { threadsRoutes } from "./routes/threads.js";
 import { dispatcherRoutes } from "./routes/dispatcher.js";
 import { credRoutes } from "./routes/cred.js";
 import { capabilitiesRoutes } from "./routes/capabilities.js";
+import "./providers/registry.js";
 
 assertProductionToken();
 

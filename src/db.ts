@@ -106,7 +106,7 @@ function seedIfEmpty(db: Db): void {
   // Dispatcher window (参謀) + personal + research — WOW #2 role bots ≥ 2
   insertBot.run("bot_dispatcher", "参謀", "窓口", "Dispatcher entry window", "claude", "local", now, now);
   insertBot.run("bot_personal", "自分用Bot", "個人", "Personal assistant", "claude", "local", now, now);
-  insertBot.run("bot_research", "リサーチ", "調査", "Research role", "claude", "local", now, now);
+  insertBot.run("bot_research", "リサーチ", "調査", "Research role", "codex", "local", now, now);
 
   db.prepare(`INSERT INTO groups (id, name, created_at) VALUES (?, ?, ?)`).run(
     "grp_general",

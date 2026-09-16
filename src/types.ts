@@ -1,5 +1,23 @@
 export type AdapterId = string;
-export type ProviderId = "claude" | "codex" | "opencode" | string;
+export type ProviderId =
+  | "claude"
+  | "codex"
+  | "opencode"
+  | "agy"
+  | "pi"
+  | "kimi"
+  | "grok"
+  | string;
+
+export const REQUIRED_PROVIDER_IDS = [
+  "claude",
+  "codex",
+  "opencode",
+  "agy",
+  "pi",
+  "kimi",
+  "grok",
+] as const;
 
 export type StreamEvent =
   | { type: "token"; threadId: string; text: string }
@@ -57,10 +75,12 @@ export type Message = {
 /** Public CredGrant status — no secret fields */
 export type CredGrantStatus = {
   purpose: string;
+  provider: ProviderId;
   present: boolean;
   mountsOk: boolean;
   envOk: boolean;
-  status_code: "ready" | "missing" | "partial" | "not_registered";
+  installed: boolean;
+  status_code: "ready" | "missing" | "partial" | "not_registered" | "not_installed";
   hint?: string;
 };
 
@@ -96,4 +116,7 @@ export type ProviderCredSpec = {
   purpose: string;
   mounts: Array<{ host: string; container: string; mode: "ro" | "rw" }>;
   envKeys: string[];
+  /** CLI names for doctor / detect — no secrets */
+  binaryHints: string[];
+  missingHint: string;
 };
