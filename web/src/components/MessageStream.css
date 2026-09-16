@@ -1,0 +1,79 @@
+.msg {
+  max-width: 680px;
+  margin-bottom: calc(var(--space) * 2.5);
+}
+.msg-meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space);
+  margin-bottom: 6px;
+}
+.msg-role {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.msg-user .msg-role {
+  color: var(--info);
+}
+.msg-time {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+.msg-body {
+  font-size: 0.925rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text);
+  line-height: 1.55;
+}
+.cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--accent);
+  animation: blink 1s step-end infinite;
+}
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+.tool-chip {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 0.72rem;
+  font-family: var(--mono);
+  color: var(--text-muted);
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  border-radius: 999px;
+}
+
+.stream-error {
+  max-width: 520px;
+  margin: calc(var(--space) * 2) 0;
+  padding: calc(var(--space) * 2);
+  border-radius: var(--radius);
+  border: 1px solid rgba(224, 112, 112, 0.35);
+  background: var(--danger-soft);
+}
+.stream-error-title {
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+  color: var(--danger);
+}
+.stream-error p {
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.stream-error-code {
+  font-family: var(--mono);
+  font-size: 0.72rem !important;
+  color: var(--text-dim) !important;
+}

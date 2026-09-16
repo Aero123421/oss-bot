@@ -1,0 +1,71 @@
+.composer-gate {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  margin-bottom: var(--space);
+}
+.composer-retry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space);
+  font-size: 0.8rem;
+  color: var(--danger);
+  margin-bottom: var(--space);
+}
+.composer-retry button {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(224, 112, 112, 0.4);
+  color: var(--danger);
+}
+.composer {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space);
+  background: var(--bg-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 10px 10px 10px 14px;
+}
+.composer textarea {
+  flex: 1;
+  resize: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  min-height: 24px;
+  max-height: 140px;
+  line-height: 1.45;
+  color: var(--text);
+}
+.composer textarea::placeholder {
+  color: var(--text-dim);
+}
+.composer textarea:disabled {
+  opacity: 0.55;
+}
+.send-btn {
+  flex-shrink: 0;
+  height: 36px;
+  min-width: 64px;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: #1a1408;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.send-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.send-btn.stop {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+}
