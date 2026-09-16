@@ -1,0 +1,102 @@
+.auth-gate {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: calc(var(--space) * 3);
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(201, 162, 39, 0.08), transparent 55%),
+    var(--bg-0);
+}
+
+.auth-gate-card {
+  width: min(440px, 100%);
+  padding: calc(var(--space) * 4);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg-1);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.auth-gate-mark {
+  font-size: 28px;
+  color: var(--accent);
+  margin-bottom: calc(var(--space) * 2);
+}
+
+.auth-gate-card h1 {
+  margin: 0 0 var(--space);
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.auth-gate-lead {
+  margin: 0 0 calc(var(--space) * 3);
+  color: var(--text-muted);
+  font-size: 0.925rem;
+}
+
+.auth-gate-lead code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  color: var(--text);
+  background: var(--bg-3);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.auth-gate-actions {
+  display: flex;
+  gap: var(--space);
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: calc(var(--space) * 2);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 calc(var(--space) * 2);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #1a1408;
+}
+.btn-primary:hover {
+  filter: brightness(1.05);
+}
+
+.btn-ghost {
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  background: transparent;
+}
+.btn-ghost:hover {
+  background: var(--bg-hover);
+}
+
+.auth-gate-note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.auth-gate-demo {
+  margin-top: calc(var(--space) * 3);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.auth-gate-demo:hover {
+  color: var(--text);
+}

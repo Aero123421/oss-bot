@@ -1,0 +1,53 @@
+.appr {
+  margin: calc(var(--space) * 1.5) 0;
+  padding: calc(var(--space) * 2);
+  border-radius: var(--radius);
+  border: 1px solid rgba(201, 162, 39, 0.28);
+  background: linear-gradient(180deg, var(--accent-soft), transparent 80%),
+    var(--bg-2);
+  max-width: 520px;
+}
+.appr-badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  color: var(--priority);
+  margin-bottom: var(--space);
+  font-weight: 600;
+}
+.appr h3 {
+  margin: 0 0 var(--space);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.appr p {
+  margin: 0 0 var(--space);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.appr-hint {
+  font-family: var(--mono);
+  font-size: 0.75rem !important;
+  color: var(--text-dim) !important;
+  background: var(--bg-0);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.appr-actions {
+  display: flex;
+  gap: var(--space);
+  margin-top: calc(var(--space) * 1.5);
+}
+.appr-done {
+  display: flex;
+  gap: var(--space);
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-2);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  max-width: 520px;
+}

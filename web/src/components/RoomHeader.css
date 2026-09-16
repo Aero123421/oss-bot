@@ -1,0 +1,70 @@
+.rh-title-block {
+  flex: 1;
+  min-width: 0;
+}
+.rh-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rh-meta {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--space) * 1.5);
+  margin-top: 2px;
+}
+
+.presence {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+.presence-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.04);
+}
+.presence.executing {
+  color: var(--ok);
+}
+.presence.executing .presence-dot {
+  background: var(--ok);
+  box-shadow: 0 0 0 3px var(--ok-soft);
+  animation: pulse 1.4s ease infinite;
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.rh-bots {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.rh-bot {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  background: transparent;
+}
+.rh-bot.active {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--bot) 50%, transparent);
+  background: color-mix(in srgb, var(--bot) 18%, transparent);
+}
