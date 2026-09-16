@@ -15,6 +15,9 @@ curl -s localhost:3000/healthz
 curl -s -H "Authorization: Bearer $OSS_BOT_TOKEN" localhost:3000/api/v1/me
 ```
 
+Chat UI (same compose): open **http://localhost:8080** — nginx serves `web/` and proxies `/api` + `/ws` to the API (same-origin).
+
+
 Stop: `docker compose down` (keep volume). Do **not** use `down -v` unless you intend to wipe SQLite.
 
 ### Dev overlay (Docker sock + CredBridge RO mounts)
