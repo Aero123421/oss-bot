@@ -1,0 +1,38 @@
+# ローカル / 単機オンプレ用。Postgres・Redis なし（SQLite）。
+# リスク: トークン未設定だと起動拒否。data ボリューム削除で DB 消失。
+# ロールバック: 前版 compose に戻して `docker compose up -d --build`
+# データ保持: `docker compose down`（`-v` は使わない）
+
+name: oss-bot
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT:-3000}:3000"
+    env_file:
+      - .env
+    environment:
+      PORT: "3000"
+      DATABASE_PATH: /app/data/oss-bot.sqlite
+      # .env の OSS_BOT_TOKEN を必須とする
+    volumes:
+      - ossbot-data:/app/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 8
+      start_period: 20s
+    restart: unless-stopped
+
+volumes:
+  ossbot-data:

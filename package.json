@@ -1,0 +1,27 @@
+{
+  "name": "oss-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "doctor": "tsx scripts/doctor.ts",
+    "doctor:ci": "tsx scripts/doctor.ts --ci --strict"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "hono": "^4.7.2",
+    "@hono/node-server": "^1.14.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.13.10",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}

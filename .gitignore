@@ -1,0 +1,40 @@
+# deps / build
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+.turbo/
+
+# env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# sqlite & runtime data
+data/
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# logs / coverage / caches
+logs/
+*.log
+npm-debug.log*
+coverage/
+.nyc_output/
+.cache/
+.tmp/
+.DS_Store
+
+# IDE / OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# docker local overrides
+docker-compose.override.yml
