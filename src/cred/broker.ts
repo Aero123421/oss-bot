@@ -17,7 +17,10 @@ export class CredBroker {
     this.specs.set(spec.purpose, spec);
   }
 
-  /** Public status only — never returns secret values */
+  /**
+   * Public status only — NEVER returns secret values.
+   * HTTP routes may expose this. Do NOT expose `issue()` grants over HTTP.
+   */
   status(purpose: string): CredGrantStatus {
     const spec = this.specs.get(purpose);
     if (!spec) {
@@ -31,21 +34,16 @@ export class CredBroker {
       };
     }
 
-    const mountsOk = spec.mounts.every((m) =>
-      fs.existsSync(expandHost(m.host))
-    );
+    const mountsOk = spec.mounts.every((m) => fs.existsSync(expandHost(m.host)));
     const envOk =
       spec.envKeys.length === 0 ||
       spec.envKeys.some((k) => Boolean(process.env[k]?.trim()));
 
-    // Ready if mounts exist OR at least one supported env key is set
-    const present = mountsOk || envOk;
     const ready = mountsOk || envOk;
-
     let status_code: CredGrantStatus["status_code"] = "missing";
     let hint: string | undefined;
     if (ready) {
-      status_code = mountsOk && envOk ? "ready" : mountsOk || envOk ? "ready" : "partial";
+      status_code = "ready";
       if (!mountsOk && envOk) hint = "env token present; host mount path missing (ok for local)";
       if (mountsOk && !envOk) hint = "host mount present; optional env token absent";
     } else {
@@ -56,17 +54,18 @@ export class CredBroker {
 
     return {
       purpose,
-      present,
+      present: ready,
       mountsOk,
       envOk,
-      status_code: ready ? "ready" : status_code,
+      status_code,
       hint,
     };
   }
 
   /**
-   * Issue in-memory CredGrant for runtime injection.
-   * NEVER log env values. Mounts are declarative (docker layer applies RO bind).
+   * In-memory CredGrant for Runtime/Provider injection ONLY.
+   * FORBIDDEN: serialize this object (especially `env`) into HTTP JSON, logs, Bus payloads, or DB.
+   * Callers must pass env straight into process spawn / docker and drop the reference.
    */
   issue(purpose: string, runtimeHandleId: string): CredGrant {
     const st = this.status(purpose);

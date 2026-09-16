@@ -2,7 +2,7 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { assertProductionToken, isAuthGateOpen, tokenGate } from "./auth.js";
-import { openDb } from "./db.js";
+import { openDb, getDb } from "./db.js";
 import { migrateRuntime } from "./runtime/store.js";
 import {
   listRuntimes,
@@ -49,7 +49,6 @@ app.use(
   })
 );
 
-
 function authGatePublic() {
   return {
     configured: isAuthGateOpen(),
@@ -81,8 +80,8 @@ app.get("/healthz", (c) => {
 });
 
 /**
- * AuthGate: ALL /api/v1/* require shared token.
- * UI AuthGate empty-state uses /healthz.auth_gate + local token presence — never a public API.
+ * AuthGate: ALL /api/v1/* require shared token (OSS_BOT_TOKEN).
+ * CredBroker.issue() env must never appear in HTTP responses — status only.
  */
 app.use("/api/v1/*", tokenGate);
 
@@ -96,7 +95,7 @@ app.get("/api/v1/runtime", (c) =>
     ...runtimeMeta(),
     bot_runtime: botRuntime,
     cred_bridge_mounts: credBridgeMounts,
-    handles: listRuntimes(db),
+    handles: listRuntimes(getDb()),
   })
 );
 
@@ -106,7 +105,7 @@ app.post("/api/v1/runtime/start", async (c) => {
     mode?: "docker" | "local";
     image?: string;
   };
-  const result = startRuntime(db, body);
+  const result = startRuntime(getDb(), body);
   if (!result.ok) {
     return c.json({ ok: false, error: result.error }, result.status as 400 | 404 | 500 | 503);
   }
@@ -114,7 +113,7 @@ app.post("/api/v1/runtime/start", async (c) => {
 });
 
 app.post("/api/v1/runtime/:id/stop", (c) => {
-  const result = stopRuntime(db, c.req.param("id"));
+  const result = stopRuntime(getDb(), c.req.param("id"));
   if (!result.ok) {
     return c.json({ ok: false, error: result.error }, result.status as 400 | 404 | 500 | 503);
   }
@@ -122,20 +121,22 @@ app.post("/api/v1/runtime/:id/stop", (c) => {
 });
 
 app.get("/api/v1/runtime/:id/status", (c) => {
-  const result = statusRuntime(db, c.req.param("id"));
+  const result = statusRuntime(getDb(), c.req.param("id"));
   if (!result.ok) {
     return c.json({ ok: false, error: result.error }, result.status as 400 | 404 | 500 | 503);
   }
   return c.json({ ok: true, handle: result.handle });
 });
 
-// Control plane (PR #19 modules) — gated by app.use('/api/v1/*', tokenGate) above
+// Control plane — gated by app.use('/api/v1/*', tokenGate) above
 app.route("/api/v1/bots", botsRoutes);
 app.route("/api/v1/groups", groupsRoutes);
 app.route("/api/v1/threads", threadsRoutes);
 app.route("/api/v1/dispatcher", dispatcherRoutes);
 app.route("/api/v1/cred", credRoutes);
+// Capability exec: both paths for FE + prior evidence URLs
 app.route("/api/v1/runtime", capabilitiesRoutes);
+app.route("/api/v1/runtimes", capabilitiesRoutes);
 
 serve({ fetch: app.fetch, port }, () => {
   console.log(

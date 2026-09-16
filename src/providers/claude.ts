@@ -1,6 +1,8 @@
 import { spawn, spawnSync } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { getDb, newId, nowIso } from "../db.js";
+import { credBroker } from "../cred/broker.js";
+import { agentBus } from "../bus.js";
 import type { StreamEvent } from "../types.js";
 
 const emitters = new Map<string, EventEmitter>();
@@ -16,6 +18,8 @@ export function threadEvents(threadId: string): EventEmitter {
 }
 
 export function detectClaudeBinary(): { ok: boolean; binary?: string; reason?: string } {
+  const override = process.env.CLAUDE_BIN?.trim();
+  if (override) return { ok: true, binary: override };
   for (const name of ["claude", "claude-code"]) {
     const r = spawnSync("sh", ["-c", `command -v ${name}`], { encoding: "utf8" });
     if (r.status === 0 && r.stdout.trim()) {
@@ -35,15 +39,20 @@ function scrub(s: string): string {
     .replace(/eyJ[a-zA-Z0-9._-]+/g, "[redacted]");
 }
 
-/**
- * Run Claude Code for a thread. Default path is real CLI.
- * Mock only when OSS_BOT_PROVIDER_MODE=mock (tests/CI) — never acceptance UI default.
- */
-export async function runClaudeForThread(opts: {
+export type ClaudeRunInput = {
   threadId: string;
   botId: string;
   content: string;
-}): Promise<void> {
+};
+
+/**
+ * Run Claude Code for a thread. CredBroker.issue() injects env in-memory only —
+ * never serialize grant.env to HTTP/logs/Bus.
+ * Mock only when OSS_BOT_PROVIDER_MODE=mock (tests/CI).
+ */
+export async function runClaudeForThread(
+  opts: ClaudeRunInput
+): Promise<void> {
   const { threadId, botId, content } = opts;
   emit(threadId, { type: "status", threadId, status: "starting" });
 
@@ -72,6 +81,22 @@ export async function runClaudeForThread(opts: {
     return;
   }
 
+  let childEnv: NodeJS.ProcessEnv = { ...process.env };
+  try {
+    const grant = credBroker.issue("provider:claude", `local-${threadId}`);
+    childEnv = { ...process.env, ...grant.env };
+    // drop grant reference; never log env values
+  } catch (err) {
+    const st = (err as { status?: { status_code?: string } }).status;
+    emit(threadId, {
+      type: "error",
+      threadId,
+      error: `NotReady: cred_${st?.status_code ?? "missing"}. Host login ~/.claude or CLAUDE_CODE_OAUTH_TOKEN; npm run doctor`,
+    });
+    emit(threadId, { type: "done", threadId });
+    return;
+  }
+
   const detected = detectClaudeBinary();
   if (!detected.ok || !detected.binary) {
     emit(threadId, {
@@ -87,7 +112,7 @@ export async function runClaudeForThread(opts: {
 
   await new Promise<void>((resolve) => {
     const child = spawn(detected.binary!, ["-p", content, "--output-format", "text"], {
-      env: { ...process.env },
+      env: childEnv,
       stdio: ["ignore", "pipe", "pipe"],
     });
     let out = "";
@@ -135,6 +160,12 @@ export async function runClaudeForThread(opts: {
         content: out,
       });
       emit(threadId, { type: "done", threadId });
+      agentBus.publish({
+        threadId,
+        botId,
+        content: out.slice(0, 500),
+        priority: false,
+      });
       resolve();
     });
   });
