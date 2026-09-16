@@ -36,3 +36,12 @@ npm run dev
 ## Risks
 
 See `RISKS.md`. Do not `docker compose down -v` in production (SQLite data loss).
+
+## Dependencies
+
+Always commit `package-lock.json`. Install with `npm ci` (not `npm install`) so Docker/CI match local.
+
+## /healthz
+
+Success: `{ ok, db, schema_version }`. Failure: `{ ok: false, error: "unavailable" }` (details only in server logs).
+

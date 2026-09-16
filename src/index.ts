@@ -52,7 +52,8 @@ app.get("/healthz", (c) => {
       .get("schema_version") as { value: string } | undefined;
     return c.json({ ok, db: ok, schema_version: schema?.value ?? null });
   } catch (err) {
-    return c.json({ ok: false, error: String(err) }, 503);
+    console.error("healthz failed", err);
+    return c.json({ ok: false, error: "unavailable" }, 503);
   }
 });
 

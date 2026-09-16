@@ -9,7 +9,8 @@ Exit: 0=OK / 1=WARN（`--strict` で非0） / 2=FAIL
 | ID | 項目 | 判定 |
 |----|------|------|
 | H1 | Node.js >= 22 | FAIL |
-| H2 | `npm` 利用可 + lockfile または package.json | FAIL |
+| H2 | `npm` + package.json | FAIL |
+| H2b | `package-lock.json` 必須 | FAIL |
 | H3 | 空きディスク >= 1GB（SQLite+ログ） | WARN <2GB / FAIL <500MB |
 | H4 | `git`, `curl` | FAIL / WARN |
 
