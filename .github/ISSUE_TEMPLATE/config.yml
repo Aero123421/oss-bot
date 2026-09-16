@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discussions
+    url: https://github.com/Aero123421/oss-bot/discussions
+    about: Questions and ideas that are not bugs or feature requests.

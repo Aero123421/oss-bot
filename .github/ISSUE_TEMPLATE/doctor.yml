@@ -1,0 +1,47 @@
+name: Install / doctor failure
+description: One-command setup or doctor failed.
+title: "doctor: "
+labels: ["doctor", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For onboarding failures. Include the exact command and full doctor output.
+  - type: input
+    id: command
+    attributes:
+      label: Command run
+      placeholder: e.g. curl ... | bash   or   oss-bot doctor
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Full doctor / install output
+      render: shell
+    validations:
+      required: true
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Where it failed
+      options:
+        - Install / bootstrap
+        - doctor checks
+        - First launch / UI
+        - Remote access
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: OS + arch
+      placeholder: Ubuntu 24.04 x86_64
+    validations:
+      required: true
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Screenshot (if UI)
+      description: Drop an image if the failure is visual.
