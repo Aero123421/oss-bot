@@ -159,6 +159,28 @@ else if (usingSockOverlay && process.env.DOCKER_HOST)
   add("B2", "PASS", "DOCKER_HOST set for sock overlay");
 else add("B2", "PASS", "DOCKER_HOST not required for base compose");
 
+// CredBridge host paths (existence only — never read secret contents)
+const home = process.env.HOME ?? "";
+const claudeHost = process.env.CLAUDE_CONFIG_HOST || (home ? path.join(home, ".claude") : "");
+const codexHost = process.env.CODEX_HOME_HOST || (home ? path.join(home, ".codex") : "");
+const opencodeHost =
+  process.env.OPENCODE_DATA_HOST ||
+  (home ? path.join(home, ".local", "share", "opencode") : "");
+function hostPathStatus(id: string, label: string, hostPath: string) {
+  if (!hostPath) {
+    add(id, "WARN", `${label} host path unknown`);
+    return;
+  }
+  if (fs.existsSync(hostPath)) add(id, "PASS", `${label} present: ${hostPath}`);
+  else add(id, "WARN", `${label} missing on host: ${hostPath}`, "Log in on the host first (CredBridge)");
+}
+hostPathStatus("CB1", "Claude ~/.claude", claudeHost);
+hostPathStatus("CB2", "Codex CODEX_HOME", codexHost);
+hostPathStatus("CB3", "OpenCode data dir", opencodeHost);
+if (process.env.CRED_BRIDGE_MOUNTS === "1" || usingSockOverlay)
+  add("CB4", "PASS", "dev overlay expects CredBridge RO mounts");
+else add("CB4", "WARN", "CredBridge mounts active only with docker-compose.dev.yml");
+
 if (requireRunning) {
   const port = process.env.PORT ?? "3000";
   try {
