@@ -1,53 +1,50 @@
 # oss-bot
 
-On-prem agent platform (P0). **Node 22 + TypeScript + Hono + SQLite + Docker bot runtime.** No Postgres / Redis.
+On-prem agent platform. **Node 22 + TypeScript + Hono + SQLite + Docker runtime.** No Postgres / Redis.
 
-## Quick start
+## S0 — localhost landing
 
 ```bash
 cp .env.example .env
-# set OSS_BOT_TOKEN to a long random string
+# set OSS_BOT_TOKEN to a long random string (required)
 docker compose up --build
 ```
-
-Bot VM control (**DEV** — mounts docker.sock):
-
-```bash
-export DOCKER_GID="$(getent group docker | cut -d: -f3)"   # required, must not be 0
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
-```
-
-`DOCKER_HOST` is set only by the dev overlay, not base compose. Never combine sock overlay with `NODE_ENV=production`.
 
 ```bash
 curl -s localhost:3000/healthz
 curl -s -H "Authorization: Bearer $OSS_BOT_TOKEN" localhost:3000/api/v1/me
 ```
 
-Local without Docker:
+Stop: `docker compose down` (keep volume). Do **not** use `down -v` unless you intend to wipe SQLite.
+
+### Dev overlay (Docker sock + CredBridge RO mounts)
 
 ```bash
-npm install
-npm run doctor
-npm run dev
+export DOCKER_GID="$(getent group docker | cut -d: -f3)"   # required, not 0
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 ```
+
+## S2 — Runtime (CP)
+
+Token-gated:
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| GET | `/api/v1/runtime` | meta + handles (flags only) |
+| POST | `/api/v1/runtime/start` | body: `{ bot_id?, mode?: "docker"\|"local", image? }` |
+| GET | `/api/v1/runtime/:id/status` | refresh status from Docker/local |
+| POST | `/api/v1/runtime/:id/stop` | stop handle |
+
+Default mode is **docker** when daemon is reachable, else **local** fallback. No Tailscale/CF in P0.
 
 ## Doctor
 
-`npm run doctor` — host / docker / sqlite / token / bot-runtime checks.  
+`npm run doctor` — host / docker / sqlite / token / CredBridge path checks.  
 `npm run doctor:ci` — CI mode with `--strict`.
 
 ## Risks
 
-See `RISKS.md`. Do not `docker compose down -v` in production (SQLite data loss). Do not use `docker-compose.dev.yml` in production.
-
-## Dependencies
-
-Always commit `package-lock.json`. Install with `npm ci` (not `npm install`) so Docker/CI match local.
-
-## /healthz
-
-Success: `{ ok, db, schema_version }`. Failure: `{ ok: false, error: "unavailable" }` (details only in server logs).
+See `RISKS.md`. Secrets stay on the host / `.env` only.
 
 ## CredBridge (dev)
 
