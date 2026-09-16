@@ -4,6 +4,14 @@ import { createMiddleware } from "hono/factory";
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
+import { migrateRuntime } from "./runtime/store.js";
+import {
+  listRuntimes,
+  runtimeMeta,
+  startRuntime,
+  statusRuntime,
+  stopRuntime,
+} from "./runtime/service.js";
 
 const port = Number(process.env.PORT ?? 3000);
 const dbPath = process.env.DATABASE_PATH ?? "./data/oss-bot.sqlite";
@@ -11,6 +19,7 @@ const token = process.env.OSS_BOT_TOKEN ?? "";
 const botRuntime = process.env.BOT_RUNTIME ?? "docker";
 const dockerHostConfigured = Boolean(process.env.DOCKER_HOST);
 const sockOverlay = process.env.DOCKER_SOCK_OVERLAY === "1";
+const credBridgeMounts = process.env.CRED_BRIDGE_MOUNTS === "1";
 
 if (process.env.NODE_ENV === "production") {
   if (!token || token.startsWith("change-me")) {
@@ -37,6 +46,7 @@ db.prepare(
   `INSERT INTO meta (key, value) VALUES ('schema_version', '1')
    ON CONFLICT(key) DO NOTHING`
 ).run();
+migrateRuntime(db);
 
 const tokenGate = createMiddleware(async (c, next) => {
   const header =
@@ -64,6 +74,7 @@ app.get("/healthz", (c) => {
       bot_runtime: botRuntime,
       docker_host_configured: dockerHostConfigured,
       sock_overlay: sockOverlay,
+      cred_bridge_mounts: credBridgeMounts,
     });
   } catch (err) {
     console.error("healthz failed", err);
@@ -75,15 +86,39 @@ app.get("/api/v1/me", tokenGate, (c) =>
   c.json({ ok: true, auth: "token", bot_runtime: botRuntime })
 );
 
+/** Runtime adapter summary (CP-aligned flags; no secret paths/values). */
 app.get("/api/v1/runtime", tokenGate, (c) =>
   c.json({
     ok: true,
-    runtime: botRuntime,
-    docker_host_configured: dockerHostConfigured,
-    sock_overlay: sockOverlay,
-    note: "sock overlay via docker-compose.dev.yml only (dev); never expose DOCKER_HOST value",
+    ...runtimeMeta(),
+    bot_runtime: botRuntime,
+    cred_bridge_mounts: credBridgeMounts,
+    handles: listRuntimes(db),
   })
 );
+
+app.post("/api/v1/runtime/start", tokenGate, async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as {
+    bot_id?: string;
+    mode?: "docker" | "local";
+    image?: string;
+  };
+  const result = startRuntime(db, body);
+  if (!result.ok) return c.json({ ok: false, error: result.error }, result.status as 400 | 404 | 500 | 503);
+  return c.json({ ok: true, handle: result.handle }, 201);
+});
+
+app.post("/api/v1/runtime/:id/stop", tokenGate, (c) => {
+  const result = stopRuntime(db, c.req.param("id"));
+  if (!result.ok) return c.json({ ok: false, error: result.error }, result.status as 400 | 404 | 500 | 503);
+  return c.json({ ok: true, handle: result.handle });
+});
+
+app.get("/api/v1/runtime/:id/status", tokenGate, (c) => {
+  const result = statusRuntime(db, c.req.param("id"));
+  if (!result.ok) return c.json({ ok: false, error: result.error }, result.status as 400 | 404 | 500 | 503);
+  return c.json({ ok: true, handle: result.handle });
+});
 
 serve({ fetch: app.fetch, port }, () => {
   console.log(
