@@ -65,6 +65,9 @@ if (which("npm") && fs.existsSync("package.json"))
   add("H2", "PASS", "npm + package.json");
 else add("H2", "FAIL", "npm or package.json missing", "Run from repo root");
 
+if (fs.existsSync("package-lock.json")) add("H2b", "PASS", "package-lock.json present");
+else add("H2b", "FAIL", "package-lock.json missing", "Run npm install && commit the lockfile");
+
 if (which("git")) add("H4", "PASS", "git present");
 else add("H4", "WARN", "git not found");
 
