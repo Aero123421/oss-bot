@@ -1,3 +1,20 @@
+.composer-stream-slot {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  margin-bottom: var(--space);
+}
+.composer-stream-slot.reconnecting,
+.composer-stream-slot.connecting {
+  color: var(--accent, #c9a227);
+}
+.composer-stream-slot.error,
+.composer-stream-slot.closed {
+  color: var(--danger);
+}
 .composer-gate {
   font-size: 0.75rem;
   color: var(--text-muted);
