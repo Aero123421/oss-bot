@@ -1,0 +1,44 @@
+.sb-section-label {
+  padding: var(--space) var(--space);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sb-add-bot {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--accent, #c9a227);
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.sb-add-bot:hover {
+  background: var(--bg-hover);
+}
+.sb-row-wrap {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.sb-row-wrap.active {
+  background: var(--bg-3);
+  border-radius: var(--radius-sm);
+}
+.sb-edit {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+.sb-edit:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
