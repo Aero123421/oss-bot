@@ -2,7 +2,7 @@ import { useCallback, useRef, useSyncExternalStore } from 'react'
 import { chatStore } from '../store/chatStore'
 import { apiFetch, type ApiError } from '../lib/api'
 import { subscribeThreadSse, type CpStreamEvent } from '../lib/sse'
-import type { ChatError, ChatStatus, SendPayload } from '../types'
+import type { ChatError, ChatStatus, SendPayload, WsConnectionState } from '../types'
 
 export type UseChatStreamResult = {
   status: ChatStatus
@@ -13,7 +13,7 @@ export type UseChatStreamResult = {
 }
 
 function newId(prefix: string) {
-  return `${prefix}_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`
+  return prefix + '_' + Math.random().toString(36).slice(2, 10) + '_' + Date.now().toString(36)
 }
 
 function applyCpEvent(ev: CpStreamEvent, assistantId: string) {
@@ -40,12 +40,6 @@ function applyCpEvent(ev: CpStreamEvent, assistantId: string) {
       })
       break
     case 'message':
-      chatStore.applyStreamEvent({
-        type: 'token',
-        chatId,
-        messageId: assistantId,
-        text: '',
-      })
       chatStore.patchMessage(chatId, assistantId, {
         content: ev.content,
         status: 'complete',
@@ -71,11 +65,6 @@ function applyCpEvent(ev: CpStreamEvent, assistantId: string) {
   }
 }
 
-/**
- * Dispatcher + real SSE.
- * POST /api/v1/dispatcher/messages
- * GET  /api/v1/threads/:id/events  (not /ws)
- */
 export function useChatStream(): UseChatStreamResult {
   const status = useSyncExternalStore(
     chatStore.subscribe,
@@ -105,18 +94,15 @@ export function useChatStream(): UseChatStreamResult {
   const startStream = useCallback(async (sessionId: string, assistantId: string, userText: string) => {
     unsubRef.current?.()
     inflightAssistantId.current = assistantId
-
     chatStore.setWsState('connecting')
     chatStore.applyStreamEvent({ type: 'status', chatId: sessionId, status: 'connecting' })
 
     const s = chatStore.getState()
     const botId = s.activeBotId
 
-    unsubRef.current = subscribeThreadSse(
-      sessionId,
-      (ev) => applyCpEvent(ev, assistantId),
-      (message) => {
-        chatStore.setWsState('error')
+    unsubRef.current = subscribeThreadSse(sessionId, {
+      onEvent: (ev) => applyCpEvent(ev, assistantId),
+      onError: (message) => {
         chatStore.applyStreamEvent({
           type: 'error',
           chatId: sessionId,
@@ -126,10 +112,12 @@ export function useChatStream(): UseChatStreamResult {
           retryable: true,
         })
       },
-    )
+      onState: (st) => {
+        chatStore.setWsState(st as WsConnectionState)
+      },
+    })
 
     try {
-      chatStore.setWsState('open')
       await apiFetch<{ threadId: string; messageId: string }>('/api/v1/dispatcher/messages', {
         method: 'POST',
         body: JSON.stringify({
@@ -143,20 +131,16 @@ export function useChatStream(): UseChatStreamResult {
       unsubRef.current?.()
       unsubRef.current = null
       const apiErr = e as Error & ApiError
-      const body = apiErr.body as {
-        error?: string
-        cred?: { hint?: string }
-      } | null
+      const body = apiErr.body as { error?: string; cred?: { hint?: string } } | null
       const notReady = apiErr.status === 503 || body?.error === 'not_ready'
       chatStore.setWsState('error')
       chatStore.applyStreamEvent({
         type: 'error',
         chatId: sessionId,
         messageId: assistantId,
-        code: notReady ? 'cred_not_ready' : `api_${apiErr.status ?? 'err'}`,
+        code: notReady ? 'cred_not_ready' : 'api_' + String(apiErr.status ?? 'err'),
         message: notReady
-          ? body?.cred?.hint ||
-            'Bot NotReady: host Claude login / CredBridge. npm run doctor'
+          ? body?.cred?.hint || 'Bot NotReady: host Claude login / CredBridge. npm run doctor'
           : apiErr.message || 'Dispatcher send failed',
         retryable: !notReady,
       })
@@ -172,7 +156,7 @@ export function useChatStream(): UseChatStreamResult {
       if (!sessionId) {
         chatStore.setError({
           code: 'no_session',
-          message: 'セッションが選択されていません',
+          message: 'no session selected',
           retryable: false,
         })
         return
