@@ -17,6 +17,10 @@ services:
       CLAUDE_CONFIG_DIR: /host-creds/claude
       CODEX_HOME: /host-creds/codex
       OPENCODE_DATA_DIR: /host-creds/opencode
+      AGY_CONFIG_DIR: /host-creds/agy
+      PI_CONFIG_DIR: /host-creds/pi
+      KIMI_CONFIG_DIR: /host-creds/kimi
+      GROK_CONFIG_DIR: /host-creds/grok
       CRED_BRIDGE_MOUNTS: "1"
     volumes:
       - ossbot-data:/app/data
@@ -28,5 +32,10 @@ services:
       - ${CODEX_HOME_HOST:-${HOME}/.codex}:/host-creds/codex:ro
       # OpenCode: ~/.local/share/opencode/ (auth.json / db). Override: OPENCODE_DATA_HOST
       - ${OPENCODE_DATA_HOST:-${HOME}/.local/share/opencode}:/host-creds/opencode:ro
+      # agy / pi / kimi — paths aligned with .env.example
+      - ${AGY_CONFIG_HOST:-${HOME}/.agy}:/host-creds/agy:ro
+      - ${PI_CONFIG_HOST:-${HOME}/.pi}:/host-creds/pi:ro
+      - ${KIMI_CONFIG_HOST:-${HOME}/.kimi}:/host-creds/kimi:ro
+      - ${GROK_CONFIG_HOST:-${HOME}/.grok}:/host-creds/grok:ro
     group_add:
       - "${DOCKER_GID:?Set DOCKER_GID to the host docker group id — e.g. getent group docker}"

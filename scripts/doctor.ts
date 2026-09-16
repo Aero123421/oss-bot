@@ -3,8 +3,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { credBroker } from "../src/cred/broker.js";
-import { REQUIRED_PROVIDER_IDS } from "../src/types.js";
 
 type Status = "PASS" | "WARN" | "FAIL";
 type Finding = { id: string; status: Status; message: string; hint?: string };
@@ -161,24 +159,176 @@ else if (usingSockOverlay && process.env.DOCKER_HOST)
   add("B2", "PASS", "DOCKER_HOST set for sock overlay");
 else add("B2", "PASS", "DOCKER_HOST not required for base compose");
 
-// CredBridge — all BYO providers via CredBroker (install vs auth). Never print secrets.
-let i = 1;
-for (const id of REQUIRED_PROVIDER_IDS) {
-  const st = credBroker.status(`provider:${id}`);
-  const findingId = `CB${i++}`;
-  if (st.status_code === "ready") {
-    add(findingId, "PASS", `${id}: ready (installed+auth)`);
-  } else if (st.status_code === "not_installed") {
-    add(findingId, "WARN", `${id}: not installed`, st.hint);
-  } else if (st.status_code === "missing") {
-    add(findingId, "WARN", `${id}: installed, auth missing`, st.hint);
+// CredBridge — all required providers (IF v4.1). Distinguish install vs auth.
+// Paths MUST match .env.example / docker-compose.dev.yml. Never read secret file contents.
+const home = process.env.HOME ?? "";
+type ProviderSpec = {
+  id: string;
+  provider_id: string;
+  bins: string[];
+  hostEnv: string;
+  defaultRel: string[];
+  authMarkers: string[]; // relative to host dir; existence only
+  envAuthKeys?: string[]; // official token env names; presence only
+};
+const providers: ProviderSpec[] = [
+  {
+    id: "P-CLAUDE",
+    provider_id: "claude-code",
+    bins: ["claude"],
+    hostEnv: "CLAUDE_CONFIG_HOST",
+    defaultRel: [".claude"],
+    authMarkers: [".credentials.json", "credentials.json"],
+  },
+  {
+    id: "P-CODEX",
+    provider_id: "codex",
+    bins: ["codex"],
+    hostEnv: "CODEX_HOME_HOST",
+    defaultRel: [".codex"],
+    authMarkers: ["auth.json"],
+  },
+  {
+    id: "P-OPENCODE",
+    provider_id: "opencode",
+    bins: ["opencode"],
+    hostEnv: "OPENCODE_DATA_HOST",
+    defaultRel: [".local", "share", "opencode"],
+    authMarkers: ["auth.json"],
+  },
+  {
+    id: "P-AGY",
+    provider_id: "agy",
+    bins: ["agy"],
+    hostEnv: "AGY_CONFIG_HOST",
+    defaultRel: [".agy"],
+    authMarkers: ["auth.json", "credentials.json", "config.json"],
+  },
+  {
+    id: "P-PI",
+    provider_id: "pi",
+    bins: ["pi"],
+    hostEnv: "PI_CONFIG_HOST",
+    defaultRel: [".pi"],
+    authMarkers: ["auth.json", "credentials.json", "config.json"],
+  },
+  {
+    id: "P-KIMI",
+    provider_id: "kimi",
+    bins: ["kimi"],
+    hostEnv: "KIMI_CONFIG_HOST",
+    defaultRel: [".kimi"],
+    authMarkers: ["auth.json", "credentials.json", "config.json"],
+  },
+  {
+    id: "P-GROK",
+    provider_id: "grok",
+    bins: ["grok"],
+    hostEnv: "GROK_CONFIG_HOST",
+    defaultRel: [".grok"],
+    authMarkers: ["auth.json", "credentials.json", "config.json"],
+    envAuthKeys: ["XAI_API_KEY"],
+  },
+];
+
+function resolveHostDir(hostEnv: string, defaultRel: string[]): string {
+  const fromEnv = process.env[hostEnv]?.trim();
+  if (fromEnv) return fromEnv;
+  if (!home) return "";
+  return path.join(home, ...defaultRel);
+}
+
+function binInstalled(bins: string[]): string | null {
+  for (const b of bins) {
+    if (which(b)) return b;
+  }
+  return null;
+}
+
+function authReady(hostDir: string, markers: string[]): boolean {
+  if (!hostDir || !fs.existsSync(hostDir)) return false;
+  for (const m of markers) {
+    if (fs.existsSync(path.join(hostDir, m))) return true;
+  }
+  // dir exists but no known marker → treat as weak/unknown auth (not Ready)
+  return false;
+}
+
+let anyProviderReady = false;
+for (const p of providers) {
+  const hostDir = resolveHostDir(p.hostEnv, p.defaultRel);
+  const bin = binInstalled(p.bins);
+  if (bin) add(`${p.id}-INSTALL`, "PASS", `${p.provider_id} installed (${bin})`);
+  else
+    add(
+      `${p.id}-INSTALL`,
+      "WARN",
+      `${p.provider_id} not installed (PATH missing: ${p.bins.join("|")})`,
+      `Install CLI then keep UI row (state=未インストール)`
+    );
+
+  if (!hostDir) {
+    add(`${p.id}-AUTH`, "WARN", `${p.provider_id} CredBridge path unknown (${p.hostEnv})`);
+    continue;
+  }
+  const mountedPathNote = `${p.hostEnv}=${hostDir}`;
+  if (!bin) {
+    add(`${p.id}-AUTH`, "WARN", `${p.provider_id} auth skipped (not installed) · ${mountedPathNote}`);
+    continue;
+  }
+  const envKeys = (p as { envAuthKeys?: string[] }).envAuthKeys ?? [];
+  const envAuth = envKeys.some((k) => Boolean(process.env[k]?.trim()));
+  // grok: host login (`grok login`) or XAI_API_KEY — never print key values
+  if (authReady(hostDir, p.authMarkers) || envAuth) {
+    const via = envAuth && !authReady(hostDir, p.authMarkers) ? "env" : "host-dir";
+    add(`${p.id}-AUTH`, "PASS", `${p.provider_id} auth Ready (${via}) · ${mountedPathNote}`);
+    anyProviderReady = true;
+  } else if (fs.existsSync(hostDir)) {
+    add(
+      `${p.id}-AUTH`,
+      "WARN",
+      `${p.provider_id} config dir exists but auth marker missing · ${mountedPathNote}`,
+      "Log in on the host (CredBridge); doctor never reads secret contents"
+    );
   } else {
-    add(findingId, "WARN", `${id}: ${st.status_code}`, st.hint);
+    add(
+      `${p.id}-AUTH`,
+      "WARN",
+      `${p.provider_id} 未ログイン (path missing) · ${mountedPathNote}`,
+      "Log in on the host first"
+    );
   }
 }
+
+if (anyProviderReady) add("CB-READY", "PASS", "at least one provider install+auth Ready");
+else
+  add(
+    "CB-READY",
+    "WARN",
+    "no provider fully Ready (install+auth)",
+    "Host-login at least one of: claude-code|codex|opencode|agy|pi|kimi|grok"
+  );
+
+const requiredEnvKeys = [
+  "CLAUDE_CONFIG_HOST",
+  "CODEX_HOME_HOST",
+  "OPENCODE_DATA_HOST",
+  "AGY_CONFIG_HOST",
+  "PI_CONFIG_HOST",
+  "KIMI_CONFIG_HOST",
+  "GROK_CONFIG_HOST",
+];
+if (fs.existsSync(".env.example")) {
+  const ex = fs.readFileSync(".env.example", "utf8");
+  const missing = requiredEnvKeys.filter((k) => !ex.includes(k));
+  if (missing.length)
+    add("CB-ENV", "FAIL", `.env.example missing CredBridge keys: ${missing.join(",")}`);
+  else add("CB-ENV", "PASS", ".env.example lists all CredBridge host path keys");
+} else add("CB-ENV", "FAIL", ".env.example missing");
+
 if (process.env.CRED_BRIDGE_MOUNTS === "1" || usingSockOverlay)
-  add("CBX", "PASS", "dev overlay expects CredBridge RO mounts");
-else add("CBX", "WARN", "CredBridge mounts active only with docker-compose.dev.yml");
+  add("CB-MOUNT", "PASS", "dev overlay expects CredBridge RO mounts for all providers");
+else add("CB-MOUNT", "WARN", "CredBridge mounts active only with docker-compose.dev.yml");
 
 if (requireRunning) {
   const port = process.env.PORT ?? "3000";

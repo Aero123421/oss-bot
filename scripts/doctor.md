@@ -17,3 +17,18 @@ Exit 0/1/2. No Postgres/Redis checks (stack excludes them).
 | B5 | DOCKER_GID for overlay | FAIL if missing/0 |
 | P3–P4 | token gate live | with `--require-running` |
 | CB1–CB4 | CredBridge host paths | existence only; no secret contents |
+
+## Providers (install vs auth)
+
+Mandatory provider_id set (IF v4.1): `claude-code` | `codex` | `opencode` | `agy` | `pi` | `kimi` | `grok`
+
+| Check | Meaning |
+| --- | --- |
+| `P-*-INSTALL` | CLI binary on PATH |
+| `P-*-AUTH` | CredBridge host dir + auth marker exists (contents never read) |
+| `CB-READY` | ≥1 provider has install+auth |
+| `CB-ENV` | `.env.example` lists all `*_HOST` keys |
+| `CB-MOUNT` | dev overlay RO mounts expected |
+
+Host path env keys (must match compose): `CLAUDE_CONFIG_HOST` `CODEX_HOME_HOST` `OPENCODE_DATA_HOST` `AGY_CONFIG_HOST` `PI_CONFIG_HOST` `KIMI_CONFIG_HOST` `GROK_CONFIG_HOST` (grok also accepts `XAI_API_KEY` presence / `grok login`)
+
