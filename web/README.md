@@ -1,24 +1,29 @@
-# web/ — Case B (AI版Slack) UI
+# oss-bot web (Case B — AI Slack)
 
-S6: AuthGate空状態 · Dispatcher窓口DM上位固定 · Room/DM · Bot Ready/未ログイン · **実WebSocket**（mock本線なし）
+Vite + React workspace UI. **Dispatcher only** — no provider direct calls, no mock acceptance path.
 
-## Run
+## Dev
 
 ```bash
-cd web
-npm i
-npm run dev
+# terminal 1 — API (AuthGate open)
+cp ../.env.example ../.env   # set OSS_BOT_TOKEN (non change-me)
+cd .. && npm run dev
+
+# terminal 2 — UI
+npm ci && npm run dev
 ```
 
-Proxy: `/api` and `/ws` → `http://127.0.0.1:3000`
+Open http://localhost:5173/ — enter the same token (password field; not re-displayed).
 
-Token: `VITE_OSS_BOT_TOKEN` or `?token=` or localStorage after AuthGate.
-Demo AuthGate: `?auth=0`
+## AuthGate
 
-Default landing: **参謀（窓口）DM** with seed thread (not empty home).
+- Closed: dedicated empty state (not empty chat home)
+- Open: sidebar rooms/DMs with ★参謀（窓口） pinned; Ready/未ログイン from CredBroker status labels only
 
-## Contract
+## Build
 
-- POST `/api/v1/chats/:threadId/messages`
-- WS `/ws?chatId=` — events `token|tool|status|error|done`
-- Selection: `selectedSessionId` = `threads.id`
+```bash
+npm ci && npm run build
+```
+
+Output: `web/dist` (optional static serve from API).

@@ -38,3 +38,6 @@ coverage/
 
 # docker local overrides
 docker-compose.override.yml
+
+web/node_modules/
+web/dist/

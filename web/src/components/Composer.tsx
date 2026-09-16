@@ -13,7 +13,8 @@ export function Composer() {
   const { send, stop, retry } = useChatStream()
 
   const notReady = cred !== undefined && cred !== 'Ready'
-  const canSend = !notReady && draft.trim().length > 0
+  // Still allow Send so Dispatcher returns NotReady / doctor card (no mock bypass)
+  const canSend = draft.trim().length > 0
 
   const onSend = useCallback(() => {
     void send(draft)
@@ -52,7 +53,6 @@ export function Composer() {
           value={draft}
           onChange={(e) => chatStore.setDraft(e.target.value)}
           onKeyDown={onKeyDown}
-          disabled={notReady}
           aria-label="メッセージ入力"
         />
         <SendOrStop

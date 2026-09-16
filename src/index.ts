@@ -1,5 +1,6 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { assertProductionToken, isAuthGateOpen, tokenGate } from "./auth.js";
 import { openDb } from "./db.js";
 import { migrateRuntime } from "./runtime/store.js";
@@ -35,6 +36,19 @@ const db = openDb(dbPath);
 migrateRuntime(db);
 
 const app = new Hono();
+
+const corsOrigins = (process.env.CORS_ORIGINS ?? "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+app.use(
+  "*",
+  cors({
+    origin: corsOrigins,
+    allowHeaders: ["Authorization", "Content-Type", "X-Oss-Bot-Token"],
+  })
+);
+
 
 function authGatePublic() {
   return {

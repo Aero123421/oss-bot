@@ -90,9 +90,35 @@ export const chatStore = {
     setState({ sidebarOpen: !state.sidebarOpen })
   },
 
+  /** Replace bots/rooms from Control Plane (thread id == session id). */
+  replaceWorkspace(input: {
+    bots: Bot[]
+    rooms: Room[]
+    selectedRoomId?: string
+    activeBotId?: string
+  }) {
+    const selectedRoomId =
+      input.selectedRoomId ??
+      input.rooms.find((r) => r.pinned)?.id ??
+      input.rooms[0]?.id ??
+      null
+    const sessionId = selectedRoomId
+    setState({
+      bots: input.bots,
+      rooms: input.rooms,
+      selectedRoomId,
+      selectedSessionId: sessionId,
+      activeBotId: input.activeBotId ?? input.bots[0]?.id ?? null,
+      messagesBySessionId: {},
+      status: 'idle',
+      error: null,
+    })
+  },
+
   selectRoom(roomId: string) {
     const room = state.rooms.find((r) => r.id === roomId)
     if (!room) return
+    // CP threads use room.id === thread id; seed map still works for demo rooms
     const sessionId = ROOM_TO_SESSION[roomId] ?? roomId
     const botId = room.botId ?? room.memberBotIds?.[0] ?? state.activeBotId
     setState({
