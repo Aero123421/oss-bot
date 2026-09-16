@@ -1,6 +1,5 @@
-import { useEffect, useRef } from 'react'
 import { useChatStore } from '../hooks/useChatStore'
-import { selectMessages, selectSelectedThread } from '../store/chatStore'
+import { chatStore, selectSelectedThread } from '../store/chatStore'
 
 export function RoomHeader() {
   const thread = useChatStore(() => selectSelectedThread())
@@ -16,10 +15,7 @@ export function RoomHeader() {
         className="menu-btn"
         type="button"
         aria-label="メニュー"
-        onClick={() => {
-          const { chatStore } = require('../store/chatStore') as typeof import('../store/chatStore')
-          chatStore.setSidebarOpen(!open)
-        }}
+        onClick={() => chatStore.setSidebarOpen(!open)}
       >
         メニュー
       </button>
@@ -32,7 +28,7 @@ export function RoomHeader() {
           <span>在席: 静か</span>
         ) : (
           <span>
-            在席:{" "}
+            在席:{' '}
             {running.map((b, i) => (
               <span key={b.id}>
                 {i ? ' · ' : ''}
