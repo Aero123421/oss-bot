@@ -16,3 +16,4 @@ Exit 0/1/2. No Postgres/Redis checks (stack excludes them).
 | B4 | prod + sock overlay | FAIL |
 | B5 | DOCKER_GID for overlay | FAIL if missing/0 |
 | P3–P4 | token gate live | with `--require-running` |
+| CB1–CB4 | CredBridge host paths | existence only; no secret contents |

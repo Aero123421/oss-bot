@@ -1,18 +1,32 @@
-# DEV ONLY — bot runtime via host Docker socket.
+# DEV ONLY — bot runtime via host Docker socket + CredBridge RO mounts.
 # Usage:
 #   export DOCKER_GID="$(getent group docker | cut -d: -f3)"
 #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 #
 # DOCKER_GID is required (no default). Default 0 is forbidden.
-# Risk: near-root on host. Never in production (NODE_ENV=production + this overlay = doctor FAIL).
+# CredBridge: host login only. Paths are RO bind-mounts into the container.
+# Never bake secrets into the image or commit them to the repo.
+# Risk: sock ≈ host root. Never in production (NODE_ENV=production + this overlay = doctor FAIL).
 
 services:
   api:
     environment:
       DOCKER_HOST: ${DOCKER_HOST:-unix:///var/run/docker.sock}
       DOCKER_SOCK_OVERLAY: "1"
+      # In-container mount points (ProviderCredAdapter reads these; no secret values in env)
+      CLAUDE_CONFIG_DIR: /host-creds/claude
+      CODEX_HOME: /host-creds/codex
+      OPENCODE_DATA_DIR: /host-creds/opencode
+      CRED_BRIDGE_MOUNTS: "1"
     volumes:
       - ossbot-data:/app/data
       - /var/run/docker.sock:/var/run/docker.sock
+      # --- CredBridge RO bind-mounts (host paths overridable via .env) ---
+      # Claude Code: ~/.claude (+ config / OAuth files). Override: CLAUDE_CONFIG_HOST
+      - ${CLAUDE_CONFIG_HOST:-${HOME}/.claude}:/host-creds/claude:ro
+      # Codex: CODEX_HOME / auth.json (file store). Override: CODEX_HOME_HOST
+      - ${CODEX_HOME_HOST:-${HOME}/.codex}:/host-creds/codex:ro
+      # OpenCode: ~/.local/share/opencode/ (auth.json / db). Override: OPENCODE_DATA_HOST
+      - ${OPENCODE_DATA_HOST:-${HOME}/.local/share/opencode}:/host-creds/opencode:ro
     group_add:
       - "${DOCKER_GID:?Set DOCKER_GID to the host docker group id — e.g. getent group docker}"

@@ -49,3 +49,14 @@ Always commit `package-lock.json`. Install with `npm ci` (not `npm install`) so 
 
 Success: `{ ok, db, schema_version }`. Failure: `{ ok: false, error: "unavailable" }` (details only in server logs).
 
+## CredBridge (dev)
+
+RO bind-mounts (see `docker-compose.dev.yml` / IF v4):
+
+| Provider | Host default | In-container |
+| --- | --- | --- |
+| Claude Code | `~/.claude` | `/host-creds/claude` (`CLAUDE_CONFIG_DIR`) |
+| Codex | `~/.codex` | `/host-creds/codex` (`CODEX_HOME`) |
+| OpenCode | `~/.local/share/opencode` | `/host-creds/opencode` (`OPENCODE_DATA_DIR`) |
+
+Login on the host only. Never bake credentials into the image or the repo.
