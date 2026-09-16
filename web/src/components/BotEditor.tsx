@@ -1,6 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { apiFetch } from '../features/chat/lib/api'
-import { BOT_PROVIDERS, isBotProviderId } from '../features/chat/lib/providers'
+import {
+  credStatusFromCode,
+  providerIdFromPurpose,
+  type CredProviderRow,
+} from '../features/chat/lib/credLabels'
 import type { Bot } from '../features/chat/types'
 import './BotEditor.css'
 
@@ -15,18 +19,50 @@ export function BotEditor({ mode, bot, onClose, onSaved }: Props) {
   const [name, setName] = useState(bot?.name ?? '')
   const [title, setTitle] = useState(bot?.roleLabel ?? '')
   const [provider, setProvider] = useState(bot?.provider ?? '')
+  const [providers, setProviders] = useState<CredProviderRow[]>([])
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await apiFetch<{ providers: CredProviderRow[] }>('/api/v1/cred/providers')
+        if (cancelled) return
+        const list = res.providers ?? []
+        setProviders(list)
+        if (!provider && list.length === 1) {
+          setProvider(providerIdFromPurpose(list[0].purpose) || list[0].provider)
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setLoadError(e instanceof Error ? e.message : 'providers load failed')
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [provider])
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
     if (!name.trim()) {
-      setError('名前は必須です')
+      setError('name required')
       return
     }
-    if (!isBotProviderId(provider)) {
-      setError('プロバイダは必須です（一覧から選択）')
+    if (!provider.trim()) {
+      setError('provider required')
+      return
+    }
+    const allowed = providers.some((p) => {
+      const id = providerIdFromPurpose(p.purpose) || p.provider
+      return id === provider
+    })
+    if (!allowed) {
+      setError('provider must be chosen from /cred/providers')
       return
     }
     setSaving(true)
@@ -56,7 +92,7 @@ export function BotEditor({ mode, bot, onClose, onSaved }: Props) {
       onSaved()
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : '保存に失敗しました')
+      setError(err instanceof Error ? err.message : 'save failed')
     } finally {
       setSaving(false)
     }
@@ -80,30 +116,38 @@ export function BotEditor({ mode, bot, onClose, onSaved }: Props) {
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="窓口 / 実装" />
         </label>
         <label className="bot-field">
-          <span>プロバイダ（必須）</span>
+          <span>プロバイダ（必須・API）</span>
           <select
             value={provider}
             onChange={(e) => setProvider(e.target.value)}
             required
             aria-required="true"
+            disabled={providers.length === 0}
           >
             <option value="" disabled>
-              選択してください
+              {providers.length ? '選択してください' : '読込中...'}
             </option>
-            {BOT_PROVIDERS.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
+            {providers.map((p) => {
+              const id = providerIdFromPurpose(p.purpose) || p.provider
+              const label = credStatusFromCode(p.status_code)
+              return (
+                <option key={id} value={id}>
+                  {id} — {label}
+                </option>
+              )
+            })}
           </select>
         </label>
-        <p className="bot-hint">BYO CLI。枠だけの stub は不可。Cred はラベルのみ表示します。</p>
+        <p className="bot-hint">
+          Source: GET /api/v1/cred/providers（7件）。Credはラベルのみ。stub枠禁止。
+        </p>
+        {loadError ? <p className="bot-error">{loadError}</p> : null}
         {error ? <p className="bot-error">{error}</p> : null}
         <footer className="bot-editor-actions">
           <button type="button" onClick={onClose}>
             キャンセル
           </button>
-          <button type="submit" disabled={saving || !provider}>
+          <button type="submit" disabled={saving || !provider || providers.length === 0}>
             {saving ? '保存中...' : '保存'}
           </button>
         </footer>
