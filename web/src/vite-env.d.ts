@@ -2,7 +2,7 @@
 
 interface ImportMetaEnv {
   readonly VITE_API_BASE?: string
-  readonly VITE_OSS_BOT_TOKEN?: string
+  readonly VITE_HAS_TOKEN?: string
 }
 
 interface ImportMeta {
