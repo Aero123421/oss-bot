@@ -99,10 +99,32 @@ function seedIfEmpty(db: Db): void {
   const row = db.prepare("SELECT COUNT(*) AS n FROM bots").get() as { n: number };
   if (row.n > 0) return;
   const now = new Date().toISOString();
-  db.prepare(
+  const insertBot = db.prepare(
     `INSERT INTO bots (id, name, title, role_memo, provider, runtime, env_json, enabled, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, '{}', 1, ?, ?)`
-  ).run("claude-1", "Claude", "実装", "", "claude", "local", now, now);
+  );
+  // Dispatcher window (参謀) + personal + research — WOW #2 role bots ≥ 2
+  insertBot.run("bot_dispatcher", "参謀", "窓口", "Dispatcher entry window", "claude", "local", now, now);
+  insertBot.run("bot_personal", "自分用Bot", "個人", "Personal assistant", "claude", "local", now, now);
+  insertBot.run("bot_research", "リサーチ", "調査", "Research role", "claude", "local", now, now);
+
+  db.prepare(`INSERT INTO groups (id, name, created_at) VALUES (?, ?, ?)`).run(
+    "grp_general",
+    "知的生産",
+    now
+  );
+  for (const botId of ["bot_dispatcher", "bot_personal", "bot_research"]) {
+    db.prepare(`INSERT INTO memberships (group_id, bot_id) VALUES (?, ?)`).run("grp_general", botId);
+  }
+
+  const insertThr = db.prepare(
+    `INSERT INTO threads (id, title, active_bot_id, group_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  );
+  insertThr.run("thr_dm_dispatcher", "参謀（窓口）", "bot_dispatcher", null, now, now);
+  insertThr.run("thr_dm_personal", "自分用Bot", "bot_personal", null, now, now);
+  insertThr.run("thr_dm_research", "リサーチ", "bot_research", null, now, now);
+  insertThr.run("thr_room_general", "知的生産", "bot_dispatcher", "grp_general", now, now);
 }
 
 export function getDb(): Db {
