@@ -32,9 +32,6 @@ export function BotEditor({ mode, bot, onClose, onSaved }: Props) {
         if (cancelled) return
         const list = res.providers ?? []
         setProviders(list)
-        if (!provider && list.length === 1) {
-          setProvider(providerIdFromPurpose(list[0].purpose) || list[0].provider)
-        }
       } catch (e) {
         if (!cancelled) {
           setLoadError(e instanceof Error ? e.message : 'providers load failed')
@@ -44,7 +41,7 @@ export function BotEditor({ mode, bot, onClose, onSaved }: Props) {
     return () => {
       cancelled = true
     }
-  }, [provider])
+  }, [])
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -61,7 +58,7 @@ export function BotEditor({ mode, bot, onClose, onSaved }: Props) {
       const id = providerIdFromPurpose(p.purpose) || p.provider
       return id === provider
     })
-    if (!allowed) {
+    if (providers.length > 0 && !allowed) {
       setError('provider must be chosen from /cred/providers')
       return
     }
@@ -116,13 +113,13 @@ export function BotEditor({ mode, bot, onClose, onSaved }: Props) {
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="窓口 / 実装" />
         </label>
         <label className="bot-field">
-          <span>プロバイダ（必須・API）</span>
+          <span>プロバイダ（必須）</span>
           <select
             value={provider}
             onChange={(e) => setProvider(e.target.value)}
             required
             aria-required="true"
-            disabled={providers.length === 0}
+            disabled={providers.length === 0 && !loadError}
           >
             <option value="" disabled>
               {providers.length ? '選択してください' : '読込中...'}
@@ -132,22 +129,20 @@ export function BotEditor({ mode, bot, onClose, onSaved }: Props) {
               const label = credStatusFromCode(p.status_code)
               return (
                 <option key={id} value={id}>
-                  {id} — {label}
+                  {id} - {label}
                 </option>
               )
             })}
           </select>
         </label>
-        <p className="bot-hint">
-          Source: GET /api/v1/cred/providers（7件）。Credはラベルのみ。stub枠禁止。
-        </p>
+        <p className="bot-hint">GET /api/v1/cred/providers (7). Cred labels only. No stub UI.</p>
         {loadError ? <p className="bot-error">{loadError}</p> : null}
         {error ? <p className="bot-error">{error}</p> : null}
         <footer className="bot-editor-actions">
           <button type="button" onClick={onClose}>
             キャンセル
           </button>
-          <button type="submit" disabled={saving || !provider || providers.length === 0}>
+          <button type="submit" disabled={saving || !provider}>
             {saving ? '保存中...' : '保存'}
           </button>
         </footer>
