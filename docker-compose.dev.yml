@@ -1,0 +1,18 @@
+# DEV ONLY — bot runtime via host Docker socket.
+# Usage:
+#   export DOCKER_GID="$(getent group docker | cut -d: -f3)"
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#
+# DOCKER_GID is required (no default). Default 0 is forbidden.
+# Risk: near-root on host. Never in production (NODE_ENV=production + this overlay = doctor FAIL).
+
+services:
+  api:
+    environment:
+      DOCKER_HOST: ${DOCKER_HOST:-unix:///var/run/docker.sock}
+      DOCKER_SOCK_OVERLAY: "1"
+    volumes:
+      - ossbot-data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    group_add:
+      - "${DOCKER_GID:?Set DOCKER_GID to the host docker group id — e.g. getent group docker}"

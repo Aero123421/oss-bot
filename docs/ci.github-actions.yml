@@ -1,0 +1,48 @@
+# CI — SQLite only. No Postgres/Redis services.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-doctor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      OSS_BOT_TOKEN: ci-test-token-not-for-prod-use
+      DATABASE_PATH: /tmp/oss-bot-ci.sqlite
+      BOT_RUNTIME: docker
+      NODE_ENV: development
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm install
+      - run: npm run build
+      - run: npm run doctor:ci
+      - name: Guard — no Postgres/Redis services
+        run: |
+          ! grep -Eiq 'image:\s*postgres|image:\s*redis|REDIS_URL|DATABASE_URL:.*postgres' docker-compose.yml docker-compose.dev.yml .env.example
+
+  docker-build:
+    needs: build-doctor
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: oss-bot-api:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
