@@ -1,6 +1,7 @@
 import { useCallback, useRef, useSyncExternalStore } from 'react'
 import { chatStore } from '../store/chatStore'
 import { apiFetch, type ApiError } from '../lib/api'
+import { subscribeThreadSse, type CpStreamEvent } from '../lib/sse'
 import type { ChatError, ChatStatus, SendPayload } from '../types'
 
 export type UseChatStreamResult = {
@@ -15,9 +16,65 @@ function newId(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`
 }
 
+function applyCpEvent(ev: CpStreamEvent, assistantId: string) {
+  const chatId = ev.threadId
+  switch (ev.type) {
+    case 'status': {
+      const status =
+        ev.status === 'streaming' || ev.status === 'starting'
+          ? 'streaming'
+          : ev.status === 'subscribed'
+            ? 'connecting'
+            : ev.status === 'idle'
+              ? 'idle'
+              : 'streaming'
+      chatStore.applyStreamEvent({ type: 'status', chatId, status })
+      break
+    }
+    case 'token':
+      chatStore.applyStreamEvent({
+        type: 'token',
+        chatId,
+        messageId: assistantId,
+        text: ev.text,
+      })
+      break
+    case 'message':
+      chatStore.applyStreamEvent({
+        type: 'token',
+        chatId,
+        messageId: assistantId,
+        text: '',
+      })
+      chatStore.patchMessage(chatId, assistantId, {
+        content: ev.content,
+        status: 'complete',
+      })
+      break
+    case 'error':
+      chatStore.applyStreamEvent({
+        type: 'error',
+        chatId,
+        messageId: assistantId,
+        code: 'cp_stream_error',
+        message: ev.error,
+        retryable: true,
+      })
+      break
+    case 'done':
+      chatStore.applyStreamEvent({
+        type: 'done',
+        chatId,
+        messageId: assistantId,
+      })
+      break
+  }
+}
+
 /**
- * Dispatcher path only: POST /api/v1/dispatcher/messages then poll thread messages.
- * UI never talks to provider adapters. Mock is not on this path.
+ * Dispatcher + real SSE.
+ * POST /api/v1/dispatcher/messages
+ * GET  /api/v1/threads/:id/events  (not /ws)
  */
 export function useChatStream(): UseChatStreamResult {
   const status = useSyncExternalStore(
@@ -31,12 +88,12 @@ export function useChatStream(): UseChatStreamResult {
     () => chatStore.getState().error,
   )
 
-  const abortRef = useRef<AbortController | null>(null)
+  const unsubRef = useRef<(() => void) | null>(null)
   const inflightAssistantId = useRef<string | null>(null)
 
   const stop = useCallback(() => {
-    abortRef.current?.abort()
-    abortRef.current = null
+    unsubRef.current?.()
+    unsubRef.current = null
     const s = chatStore.getState()
     if (inflightAssistantId.current && s.selectedSessionId) {
       chatStore.markAborted(s.selectedSessionId, inflightAssistantId.current)
@@ -45,126 +102,67 @@ export function useChatStream(): UseChatStreamResult {
     chatStore.setWsState('closed')
   }, [])
 
-  const startStream = useCallback(
-    async (sessionId: string, assistantId: string, userText: string) => {
-      abortRef.current?.abort()
-      const ac = new AbortController()
-      abortRef.current = ac
-      inflightAssistantId.current = assistantId
+  const startStream = useCallback(async (sessionId: string, assistantId: string, userText: string) => {
+    unsubRef.current?.()
+    inflightAssistantId.current = assistantId
 
-      chatStore.setWsState('connecting')
-      chatStore.applyStreamEvent({
-        type: 'status',
-        chatId: sessionId,
-        status: 'connecting',
-      })
+    chatStore.setWsState('connecting')
+    chatStore.applyStreamEvent({ type: 'status', chatId: sessionId, status: 'connecting' })
 
-      const s = chatStore.getState()
-      const botId = s.activeBotId
+    const s = chatStore.getState()
+    const botId = s.activeBotId
 
-      try {
-        chatStore.applyStreamEvent({
-          type: 'status',
-          chatId: sessionId,
-          status: 'streaming',
-        })
-        chatStore.setWsState('open')
-
-        const result = await apiFetch<{
-          threadId: string
-          messageId: string
-          runNote?: string
-          error?: string
-          cred?: { status_code?: string; hint?: string }
-        }>('/api/v1/dispatcher/messages', {
-          method: 'POST',
-          body: JSON.stringify({
-            content: userText,
-            threadId: sessionId,
-            botId: botId || undefined,
-            run: true,
-          }),
-          signal: ac.signal,
-        })
-
-        const threadId = result.threadId || sessionId
-        // Poll for assistant reply (Claude may be async / NotReady)
-        const started = Date.now()
-        let lastCount = 0
-        while (!ac.signal.aborted && Date.now() - started < 90_000) {
-          const data = await apiFetch<{
-            messages: Array<{
-              id: string
-              role: string
-              content: string
-              bot_id: string | null
-              created_at: string
-            }>
-          }>(`/api/v1/threads/${threadId}/messages`, { signal: ac.signal })
-
-          const msgs = data.messages ?? []
-          if (msgs.length > lastCount) {
-            for (const m of msgs.slice(lastCount)) {
-              if (m.role === 'assistant') {
-                chatStore.applyStreamEvent({
-                  type: 'token',
-                  chatId: threadId,
-                  messageId: assistantId,
-                  text: m.content,
-                })
-                chatStore.applyStreamEvent({
-                  type: 'done',
-                  chatId: threadId,
-                  messageId: assistantId,
-                })
-                inflightAssistantId.current = null
-                abortRef.current = null
-                chatStore.setWsState('closed')
-                return
-              }
-            }
-            lastCount = msgs.length
-          }
-          await new Promise((r) => setTimeout(r, 400))
-        }
-
-        // Timeout / NotReady path — surface doctor card style error
-        chatStore.applyStreamEvent({
-          type: 'error',
-          chatId: sessionId,
-          messageId: assistantId,
-          code: 'dispatcher_timeout',
-          message:
-            'Dispatcher 応答待ちがタイムアウトしました。Claude CLI / CredBridge / doctor を確認してください。',
-          retryable: true,
-        })
-      } catch (e) {
-        if (ac.signal.aborted) return
-        const apiErr = e as Error & ApiError
-        const body = apiErr.body as {
-          error?: string
-          cred?: { status_code?: string; hint?: string }
-        } | null
-        const notReady = apiErr.status === 503 || body?.error === 'not_ready'
+    unsubRef.current = subscribeThreadSse(
+      sessionId,
+      (ev) => applyCpEvent(ev, assistantId),
+      (message) => {
         chatStore.setWsState('error')
         chatStore.applyStreamEvent({
           type: 'error',
           chatId: sessionId,
           messageId: assistantId,
-          code: notReady ? 'cred_not_ready' : `api_${apiErr.status ?? 'err'}`,
-          message: notReady
-            ? body?.cred?.hint ||
-              'Bot NotReady: ホストで Claude ログイン / CredBridge RO mounts。npm run doctor'
-            : apiErr.message || 'Dispatcher への送信に失敗しました',
-          retryable: !notReady,
+          code: 'sse_error',
+          message,
+          retryable: true,
         })
-      } finally {
-        if (abortRef.current === ac) abortRef.current = null
-        inflightAssistantId.current = null
-      }
-    },
-    [],
-  )
+      },
+    )
+
+    try {
+      chatStore.setWsState('open')
+      await apiFetch<{ threadId: string; messageId: string }>('/api/v1/dispatcher/messages', {
+        method: 'POST',
+        body: JSON.stringify({
+          content: userText,
+          threadId: sessionId,
+          botId: botId || undefined,
+          run: true,
+        }),
+      })
+    } catch (e) {
+      unsubRef.current?.()
+      unsubRef.current = null
+      const apiErr = e as Error & ApiError
+      const body = apiErr.body as {
+        error?: string
+        cred?: { hint?: string }
+      } | null
+      const notReady = apiErr.status === 503 || body?.error === 'not_ready'
+      chatStore.setWsState('error')
+      chatStore.applyStreamEvent({
+        type: 'error',
+        chatId: sessionId,
+        messageId: assistantId,
+        code: notReady ? 'cred_not_ready' : `api_${apiErr.status ?? 'err'}`,
+        message: notReady
+          ? body?.cred?.hint ||
+            'Bot NotReady: host Claude login / CredBridge. npm run doctor'
+          : apiErr.message || 'Dispatcher send failed',
+        retryable: !notReady,
+      })
+      inflightAssistantId.current = null
+    }
+  }, [])
 
   const send = useCallback(
     async (payload: SendPayload | string) => {
@@ -179,10 +177,8 @@ export function useChatStream(): UseChatStreamResult {
         })
         return
       }
-
       const text = typeof payload === 'string' ? payload.trim() : payload.text.trim()
       if (!text) return
-
       const bot = s.bots.find((b) => b.id === s.activeBotId) ?? null
       const userId = newId('usr')
       const assistantId = newId('asst')
