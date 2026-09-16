@@ -1,0 +1,82 @@
+.bot-editor-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 16px;
+}
+.bot-editor {
+  width: min(420px, 100%);
+  background: var(--bg-2, #15171c);
+  border: 1px solid var(--border, #2a2f3a);
+  border-radius: 14px;
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.bot-editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.bot-editor-head h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+.bot-editor-close {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted, #9aa3b2);
+  font-size: 1rem;
+}
+.bot-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--text-muted, #9aa3b2);
+}
+.bot-field input,
+.bot-field select {
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #2a2f3a);
+  background: var(--bg, #0e0f12);
+  color: var(--text, #e8eaef);
+  padding: 0 10px;
+}
+.bot-hint {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--text-dim, #6b7382);
+}
+.bot-error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--danger, #e07070);
+}
+.bot-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.bot-editor-actions button {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #2a2f3a);
+  background: transparent;
+  color: var(--text, #e8eaef);
+}
+.bot-editor-actions button[type='submit'] {
+  background: var(--accent, #c9a227);
+  color: #1a1408;
+  border-color: transparent;
+  font-weight: 600;
+}
+.bot-editor-actions button[type='submit']:disabled {
+  opacity: 0.4;
+}
