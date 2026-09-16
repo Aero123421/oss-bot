@@ -9,7 +9,11 @@ import { chatStore } from './features/chat'
 import { useChatStore } from './features/chat/hooks/useChatStore'
 import { hasAuthToken, probeAuthGate } from './features/chat/lib/authGate'
 import { apiFetch, clearStoredToken } from './features/chat/lib/api'
-import { credStatusFromCode } from './features/chat/lib/credLabels'
+import {
+  credStatusFromCode,
+  providerIdFromPurpose,
+  type CredProviderRow,
+} from './features/chat/lib/credLabels'
 import type { Bot, CredStatus } from './features/chat/types'
 
 type CpBot = {
@@ -33,26 +37,20 @@ type EditorState =
   | null
 
 async function hydrateFromCp() {
-  const [botsRes, threadsRes, groupsRes] = await Promise.all([
+  const [botsRes, threadsRes, groupsRes, providersRes] = await Promise.all([
     apiFetch<{ bots: CpBot[] }>('/api/v1/bots'),
     apiFetch<{ threads: CpThread[] }>('/api/v1/threads'),
     apiFetch<{ groups: CpGroup[] }>('/api/v1/groups'),
+    apiFetch<{ providers: CredProviderRow[] }>('/api/v1/cred/providers').catch(() => ({
+      providers: [] as CredProviderRow[],
+    })),
   ])
 
   const credByProvider = new Map<string, CredStatus>()
-  const providers = [...new Set(botsRes.bots.map((b) => b.provider).filter(Boolean))]
-  await Promise.all(
-    providers.map(async (p) => {
-      try {
-        const res = await apiFetch<{ status: { status_code: string } }>(
-          '/api/v1/cred/status?purpose=' + encodeURIComponent('provider:' + p),
-        )
-        credByProvider.set(p, credStatusFromCode(res.status?.status_code))
-      } catch {
-        credByProvider.set(p, '未ログイン')
-      }
-    }),
-  )
+  for (const p of providersRes.providers ?? []) {
+    const id = providerIdFromPurpose(p.purpose) || p.provider
+    credByProvider.set(id, credStatusFromCode(p.status_code))
+  }
 
   const dispatcher =
     botsRes.bots.find((b) => b.id === 'bot_dispatcher' || b.title === '窓口' || b.name === '参謀') ??
@@ -110,7 +108,7 @@ export default function App() {
     try {
       await hydrateFromCp()
     } catch {
-      /* composer will surface API errors on send */
+      /* composer surfaces API errors on send */
     }
   }, [])
 
