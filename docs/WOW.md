@@ -1,71 +1,38 @@
-# WOW / 品質ゲート（MUST）
+# WOW / 合格ゲート（MUST）
 
-Release requires **both** gates PASS. 「要改善で通す」は不可 — no soft pass.
+正本は **戦略合格6点** のみ。後回し項目はチェック対象外。余計な項目で実装を広げない。
 
-## 合否判定 / Pass rule
-
-| Gate | Result |
-| --- | --- |
-| 機能ゲート Feature | PASS or FAIL |
-| Wowゲート Wow (blockers) | PASS or FAIL |
-
-**Release = Feature PASS ∧ Wow PASS.**  
-Either FAIL → no release. Partial credit / “ship with follow-ups” is **not** allowed for MUST items below.
+**合否:** 6点すべて PASS。CredBridge 付帯を満たすこと。「要改善で通す」は不可。
 
 ---
 
-## 機能ゲート / Feature gate
+## 合格6点 / MUST
 
-All must hold:
+| # | 項目 | Pass signal |
+| --- | --- | --- |
+| 1 | README → localhost → 窓口会話 | Follow README; open localhost; complete one conversation via the dispatcher/entry window |
+| 2 | 役割Bot ≥ 2・サイドバー切替 | At least two role bots; switch them from the sidebar |
+| 3 | グループ＋振り分け一発 | Create/use a group and run one routing/dispatch in a single flow |
+| 4 | Runtime実体＋FS か Shell 1発 | Real Runtime present; prove with one FS **or** one Shell action |
+| 5 | Claude実接続1本・他は枠 | One live Claude connection; other providers may be stubs/slots only |
+| 6 | CredBridge（散在コピー禁止） | Credentials only via CredBridge; no scattered copies of secrets |
 
-1. **実CLI ≥ 1** — At least one real CLI path works end-to-end (not mock-only).
-2. **UI完成度** — First look matches “AI版Slack” bar (channels / threads / empty / unread / realtime affordances readable).
-3. **リモート到達** — Remote reachability path works for a fresh client.
+### 再現の型
 
----
-
-## Wowゲート（ブロッカー） / Wow gate (blockers)
-
-Any miss = Wow **FAIL**:
-
-1. **初見5分で価値** — New user sees clear value within 5 minutes.
-2. **compose一発** — `docker compose up` (or documented one-shot) brings a usable stack.
-3. **失敗表示明瞭** — Failures are explicit in UI/logs (no silent dead ends).
-4. **再起動後履歴** — History survives process/container restart.
-5. **チャンネル・スレッド・空状態・未読・リアルタイム** — If these look fake / invisible on first glance → FAIL.
+For each row: steps → expected signal → evidence (screenshot/log, secrets redacted). No PASS without evidence.
 
 ---
 
-## 即FAIL / Instant FAIL
+## 付帯（CredBridge） / Accompanying
 
-Any one → overall **FAIL** (no release):
+Only these CredBridge constraints — not extra product scope:
 
-| ID | Condition |
-| --- | --- |
-| F1 | mock応答が本線 Mock responses on the primary path |
-| F2 | 秘密のUI露出 Secrets visible in UI |
-| F3 | RuntimeなしBot会話 Bot chat without Runtime |
-| F4 | CredBridge未Ready会話 Chat while CredBridge not Ready |
-| F5 | sock黙ってハング Socket hangs with no user-visible error |
-| F6 | 生秘密ログ Raw secrets in logs |
+1. **UIは状態のみ** — show Ready / not Ready / error; never secret material.
+2. **散在コピー禁止** — no duplicated credential files/env sprawl outside CredBridge.
+3. **後回しは対象外** — deferred work is explicitly **out of checklist scope** (do not block or expand MUST for it).
 
 ---
 
-## CredBridge ルール / CredBridge rules
+## 対象外 / Out of scope
 
-- UI shows **status only** (Ready / not Ready / error) — never secret material.
-- **生秘密即NG** — raw secrets in UI or logs = instant FAIL (F2 / F6).
-- **未Ready会話不可** — no agent conversation until CredBridge is Ready (F4).
-- **sock最小権限** — socket / bridge permissions stay least-privilege.
-
----
-
-## 再現の型 / How to verify (shape)
-
-For each MUST item, record:
-
-1. Command or UI steps  
-2. Expected pass signal  
-3. Evidence (screenshot / log excerpt, secrets redacted)
-
-Do not mark PASS without evidence. Do not override FAIL with “will fix later.”
+Anything not in the 6 points above (and not the CredBridge 付帯) is **not** a release checklist item for this doc.
