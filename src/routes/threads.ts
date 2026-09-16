@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { getDb, newId, nowIso } from "../db.js";
 import type { Message, Thread } from "../types.js";
+import { sseThreadEvents } from "../ws.js";
 
 export const threadsRoutes = new Hono();
 
@@ -25,6 +26,9 @@ threadsRoutes.post("/", async (c) => {
   return c.json({ thread }, 201);
 });
 
+threadsRoutes.get("/:id/events", (c) => sseThreadEvents(c));
+threadsRoutes.get("/:id/stream", (c) => sseThreadEvents(c));
+
 threadsRoutes.get("/:id", (c) => {
   const id = c.req.param("id");
   const thread = getDb().prepare("SELECT * FROM threads WHERE id = ?").get(id) as Thread | undefined;
@@ -41,25 +45,6 @@ threadsRoutes.patch("/:id", async (c) => {
   if (!existing) return c.json({ error: "not_found" }, 404);
   const body = await c.req.json<{ title?: string; active_bot_id?: string | null; group_id?: string | null }>();
   const now = nowIso();
-  getDb()
-    .prepare(
-      `UPDATE threads SET
-         title = COALESCE(?, title),
-         active_bot_id = CASE WHEN ? IS NOT NULL THEN ? ELSE active_bot_id END,
-         group_id = CASE WHEN ? IS NOT NULL THEN ? ELSE group_id END,
-         updated_at = ?
-       WHERE id = ?`
-    )
-    .run(
-      body.title ?? null,
-      body.active_bot_id !== undefined ? 1 : null,
-      body.active_bot_id ?? null,
-      body.group_id !== undefined ? 1 : null,
-      body.group_id ?? null,
-      now,
-      id
-    );
-  // Simpler explicit update for active_bot_id
   if (body.active_bot_id !== undefined) {
     getDb()
       .prepare("UPDATE threads SET active_bot_id = ?, updated_at = ? WHERE id = ?")
