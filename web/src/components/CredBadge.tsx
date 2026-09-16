@@ -5,7 +5,7 @@ export function CredBadge({ status }: { status?: CredStatus }) {
   const cls =
     status === 'Ready'
       ? 'cred ready'
-      : status === '未ログイン'
+      : status === '未ログイン' || status === '未インストール'
         ? 'cred login'
         : 'cred warn'
   return <span className={cls}>{status}</span>

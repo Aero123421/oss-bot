@@ -3,23 +3,30 @@ import { useChatStore } from '../features/chat/hooks/useChatStore'
 import { CredBadge } from './CredBadge'
 import { UnreadBadge } from './UnreadBadge'
 import './Sidebar.css'
+import './Sidebar.add.css'
 
-export function Sidebar() {
+type Props = {
+  onCreateBot: () => void
+  onEditBot: (botId: string) => void
+}
+
+export function Sidebar({ onCreateBot, onEditBot }: Props) {
   const open = useChatStore((s) => s.sidebarOpen)
   const selectedRoomId = useChatStore((s) => s.selectedRoomId)
   const needActions = useChatStore((s) => s.needActions)
+  const bots = useChatStore((s) => s.bots)
   const groups = useChatStore(() => selectGroups())
   const dms = useChatStore(() => selectDms())
 
   return (
-    <aside className={`sidebar ${open ? 'open' : ''}`} aria-label="サイドバー">
+    <aside className={`sidebar ${open ? 'open' : ''}`} aria-label="sidebar">
       <div className="sb-head">
         <div className="sb-ws">Workspace</div>
         <div className="sb-title">oss-bot</div>
       </div>
 
       <div className="sb-scroll">
-        <section className="sb-section" aria-label="ルーム">
+        <section className="sb-section" aria-label="rooms">
           <div className="sb-section-label">ルーム</div>
           {groups.map((r) => (
             <button
@@ -39,34 +46,50 @@ export function Sidebar() {
           ))}
         </section>
 
-        <section className="sb-section" aria-label="DM">
-          <div className="sb-section-label">DM</div>
-          {dms.map((r) => (
-            <button
-              key={r.id}
-              type="button"
-              className={`sb-row ${selectedRoomId === r.id ? 'active' : ''}`}
-              onClick={() => chatStore.selectRoom(r.id)}
-            >
-              <div className="sb-row-main">
-                <div className="sb-row-name">
-                  {r.pinned && <span className="sb-pin" title="Dispatcher窓口">★</span>}
-                  {r.name}
-                  {r.subtitle && (
-                    <span className="sb-row-sub">（{r.subtitle}）</span>
-                  )}
-                </div>
-                {r.unread === 'priority' && (
-                  <div className="sb-row-sub">要判断</div>
-                )}
-              </div>
-              <CredBadge status={r.credStatus} />
-              <UnreadBadge kind={r.unread} />
+        <section className="sb-section" aria-label="dms">
+          <div className="sb-section-label">
+            DM
+            <button type="button" className="sb-add-bot" onClick={onCreateBot}>
+              + Bot
             </button>
-          ))}
+          </div>
+          {dms.map((r) => {
+            const bot = bots.find((b) => b.id === r.botId)
+            const cred = r.credStatus ?? bot?.credStatus
+            return (
+              <div key={r.id} className={`sb-row-wrap ${selectedRoomId === r.id ? 'active' : ''}`}>
+                <button
+                  type="button"
+                  className={`sb-row ${selectedRoomId === r.id ? 'active' : ''}`}
+                  onClick={() => chatStore.selectRoom(r.id)}
+                >
+                  <div className="sb-row-main">
+                    <div className="sb-row-name">
+                      {r.pinned && <span className="sb-pin" title="Dispatcher">★</span>}
+                      {r.name}
+                      {r.subtitle && <span className="sb-row-sub">（{r.subtitle}）</span>}
+                    </div>
+                    {bot?.provider ? <div className="sb-row-sub">{bot.provider}</div> : null}
+                  </div>
+                  <CredBadge status={cred} />
+                  <UnreadBadge kind={r.unread} />
+                </button>
+                {bot ? (
+                  <button
+                    type="button"
+                    className="sb-edit"
+                    title="edit"
+                    onClick={() => onEditBot(bot.id)}
+                  >
+                    編集
+                  </button>
+                ) : null}
+              </div>
+            )
+          })}
         </section>
 
-        <section className="sb-section" aria-label="要対応">
+        <section className="sb-section" aria-label="needs attention">
           <div className="sb-section-label">要対応 ({needActions.length})</div>
           <div className="need-list">
             {needActions.map((n) => (
@@ -83,12 +106,7 @@ export function Sidebar() {
         </section>
       </div>
 
-      <footer className="sb-foot">
-        設定ツリーなし ·{' '}
-        <a href="?auth=0" title="AuthGate デモ">
-          AuthGate デモ
-        </a>
-      </footer>
+      <footer className="sb-foot">設定ツリーなし</footer>
     </aside>
   )
 }

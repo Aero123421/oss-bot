@@ -1,4 +1,4 @@
-/** Chat domain types — aligned with control plane StreamEvent + 案B IA. */
+/** Chat domain types - control plane + case B IA. */
 
 export type ChatStatus =
   | 'idle'
@@ -21,8 +21,14 @@ export type ToolCall = {
   result?: string
 }
 
-/** CredBroker status labels only — never raw secrets. */
-export type CredStatus = 'Ready' | '未ログイン' | 'doctor_failed' | 'Setup中' | '障害'
+/** CredBroker labels only - never secrets. */
+export type CredStatus =
+  | 'Ready'
+  | '未ログイン'
+  | '未インストール'
+  | 'doctor_failed'
+  | 'Setup中'
+  | '障害'
 
 export type UnreadKind = 'none' | 'normal' | 'priority'
 
@@ -32,9 +38,7 @@ export type Room = {
   id: string
   kind: RoomKind
   name: string
-  /** e.g. 窓口 */
   subtitle?: string
-  /** Dispatcher 窓口 pinned at top of DMs */
   pinned?: boolean
   botId?: string
   memberBotIds?: string[]
@@ -47,9 +51,9 @@ export type Bot = {
   id: string
   name: string
   roleLabel: string
+  provider: string
   credStatus: CredStatus
   avatarColor: string
-  /** Runtime presence — emphasize only when executing */
   executing?: boolean
 }
 
@@ -59,7 +63,6 @@ export type Message = {
   role: MessageRole
   content: string
   status: MessageStatus
-  /** Role label for parallel responders (参謀 / リサーチ …) */
   botId?: string
   botRoleLabel?: string
   toolCalls?: ToolCall[]
@@ -85,7 +88,6 @@ export type ApprovalCard = {
   body: string
   primaryLabel: string
   secondaryLabel?: string
-  /** Safe repair hint — never secrets */
   hint?: string
 }
 
@@ -99,7 +101,6 @@ export type NeedActionItem = {
   approvalId?: string
 }
 
-/** Wire format from WS `/ws?chatId=` (backend contract). */
 export type StreamEvent =
   | { type: 'token'; chatId: string; messageId: string; text: string }
   | {
@@ -137,6 +138,7 @@ export type SendPayload = {
 export type WsConnectionState =
   | 'idle'
   | 'connecting'
+  | 'reconnecting'
   | 'open'
   | 'closed'
   | 'error'
