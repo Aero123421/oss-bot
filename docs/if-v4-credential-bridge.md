@@ -1,4 +1,4 @@
-# IF v4.1.1 — CredentialBridge / 組織OS境界
+# IF v4.1.2 — CredentialBridge / 組織OS境界
 
 承認前提: Runtime既定=Docker（localは開発フォールバック） / Reach=localhost → Tailscale → Cloudflare  
 基準: 「えっこれGrok Botやん」＝AI版Slack（コンピュータ付きAI同僚の組織OS）  
@@ -6,6 +6,7 @@ mock止まり・表層だけのVM・UIへの鍵貼り本線は不合格。
 
 **v4.1 変更:** P0 の「Claude Code 1本だけ本線」を廃止。BYO は全プロバイダ本線。`ProviderCredAdapter` は全 Provider ID 分必須。
 **v4.1.1:** Provider ID に `grok` を追加（ユーザー必須）。
+**v4.1.2:** 正本 ID 固定。`claude` は禁止、必ず `claude-code`。
 
 ## Slack写像（固定）
 
@@ -64,6 +65,9 @@ CapabilityGrant / ReachEndpoint / Routine / Skill / BusMessage / AuthGate /
 | `pi` | pi | Yes |
 | `kimi` | Kimi CLI | Yes |
 | `grok` | Grok CLI | Yes |
+
+**正本 ID（WOW/QA/UI/registry はこれ以外禁止）:** `claude-code` `codex` `grok` `agy` `opencode` `pi` `kimi`  
+別名禁止: `claude` → `claude-code`。`claude` は不合格。
 
 - レジストリに無い ID で Bot 作成不可
 - 新規プロバイダ追加 = **Adapter 追加のみ**（コア改修禁止）
