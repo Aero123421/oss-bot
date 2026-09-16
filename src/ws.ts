@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import type { StreamEvent } from "./types.js";
-import { threadEvents } from "./providers/claude.js";
+import { threadEvents } from "./providers/registry.js";
 
 /** SSE — GET /api/v1/threads/:id/events (and /stream alias). Subscribes to Claude provider emitter. */
 export async function sseThreadEvents(c: Context): Promise<Response> {

@@ -1,8 +1,9 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { CredGrant, CredGrantStatus, ProviderCredSpec } from "../types.js";
-import { claudeCredSpec } from "./adapters/claude.js";
+import { spawnSync } from "node:child_process";
+import type { CredGrant, CredGrantStatus, ProviderCredSpec, ProviderId } from "../types.js";
+import { registerAllCredAdapters } from "./register.js";
 
 function expandHost(p: string): string {
   if (p.startsWith("~/")) return path.join(os.homedir(), p.slice(2));
@@ -10,11 +11,23 @@ function expandHost(p: string): string {
   return p;
 }
 
+function binaryInstalled(hints: string[]): boolean {
+  for (const name of hints) {
+    const r = spawnSync("sh", ["-c", `command -v ${name}`], { encoding: "utf8" });
+    if (r.status === 0 && r.stdout.trim()) return true;
+  }
+  return false;
+}
+
 export class CredBroker {
   private specs = new Map<string, ProviderCredSpec>();
 
   register(spec: ProviderCredSpec): void {
     this.specs.set(spec.purpose, spec);
+  }
+
+  listSpecs(): ProviderCredSpec[] {
+    return [...this.specs.values()];
   }
 
   /**
@@ -26,46 +39,74 @@ export class CredBroker {
     if (!spec) {
       return {
         purpose,
+        provider: purpose.replace(/^provider:/, "") as ProviderId,
         present: false,
         mountsOk: false,
         envOk: false,
+        installed: false,
         status_code: "not_registered",
         hint: `No ProviderCredAdapter registered for ${purpose}`,
       };
     }
 
-    const mountsOk = spec.mounts.every((m) => fs.existsSync(expandHost(m.host)));
+    const mountsOk =
+      spec.mounts.length === 0 ||
+      spec.mounts.some((m) => fs.existsSync(expandHost(m.host)));
     const envOk =
-      spec.envKeys.length === 0 ||
-      spec.envKeys.some((k) => Boolean(process.env[k]?.trim()));
+      spec.envKeys.length === 0
+        ? false
+        : spec.envKeys.some((k) => Boolean(process.env[k]?.trim()));
+    // If no env keys declared, auth is mount-only
+    const authOk =
+      spec.envKeys.length === 0 ? mountsOk : mountsOk || envOk;
+    const installed = binaryInstalled(spec.binaryHints);
 
-    const ready = mountsOk || envOk;
-    let status_code: CredGrantStatus["status_code"] = "missing";
-    let hint: string | undefined;
-    if (ready) {
-      status_code = "ready";
-      if (!mountsOk && envOk) hint = "env token present; host mount path missing (ok for local)";
-      if (mountsOk && !envOk) hint = "host mount present; optional env token absent";
-    } else {
-      status_code = "missing";
-      hint =
-        "Claude not ready: login on host (~/.claude) or set CLAUDE_CODE_OAUTH_TOKEN; never paste secrets into UI";
+    if (!installed) {
+      return {
+        purpose,
+        provider: spec.provider,
+        present: false,
+        mountsOk,
+        envOk,
+        installed: false,
+        status_code: "not_installed",
+        hint: spec.missingHint,
+      };
+    }
+
+    if (!authOk) {
+      return {
+        purpose,
+        provider: spec.provider,
+        present: false,
+        mountsOk,
+        envOk,
+        installed: true,
+        status_code: "missing",
+        hint: spec.missingHint,
+      };
     }
 
     return {
       purpose,
-      present: ready,
+      provider: spec.provider,
+      present: true,
       mountsOk,
-      envOk,
-      status_code,
-      hint,
+      envOk: spec.envKeys.length === 0 ? mountsOk : envOk,
+      installed: true,
+      status_code: "ready",
+      hint:
+        mountsOk && !envOk && spec.envKeys.length > 0
+          ? "host mount present; optional env token absent"
+          : !mountsOk && envOk
+            ? "env token present; host mount path missing (ok for local)"
+            : undefined,
     };
   }
 
   /**
    * In-memory CredGrant for Runtime/Provider injection ONLY.
    * FORBIDDEN: serialize this object (especially `env`) into HTTP JSON, logs, Bus payloads, or DB.
-   * Callers must pass env straight into process spawn / docker and drop the reference.
    */
   issue(purpose: string, runtimeHandleId: string): CredGrant {
     const st = this.status(purpose);
@@ -95,4 +136,4 @@ export class CredBroker {
 }
 
 export const credBroker = new CredBroker();
-credBroker.register(claudeCredSpec());
+registerAllCredAdapters(credBroker);

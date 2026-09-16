@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { acceptMessage } from "../dispatcher.js";
-import { runClaudeForThread } from "../providers/claude.js";
+import { getProvider } from "../providers/registry.js";
 import { getDb } from "../db.js";
 import type { Bot } from "../types.js";
 
@@ -22,7 +22,6 @@ dispatcherRoutes.post("/messages", async (c) => {
       groupId: body.groupId,
     });
 
-    // Optionally kick Claude spawn (S4); default true for local path visibility
     const shouldRun = body.run !== false;
     let runNote: string | undefined;
     if (shouldRun) {
@@ -32,16 +31,24 @@ dispatcherRoutes.post("/messages", async (c) => {
       const bot = thread?.active_bot_id
         ? (getDb().prepare("SELECT * FROM bots WHERE id = ?").get(thread.active_bot_id) as Bot)
         : undefined;
-      if (bot?.provider === "claude") {
-        // fire-and-forget; events go to SSE subscribers
-        void runClaudeForThread({
-          threadId: result.threadId,
-          botId: bot.id,
-          content: body.content ?? "",
-        }).catch((err) => {
-          console.error("claude run failed", err instanceof Error ? err.message : "error");
-        });
-        runNote = "claude_spawn_started";
+      const adapter = bot ? getProvider(bot.provider) : undefined;
+      if (adapter) {
+        void adapter
+          .run({
+            threadId: result.threadId,
+            botId: bot!.id,
+            content: body.content ?? "",
+          })
+          .catch((err) => {
+            console.error(
+              "provider run failed",
+              bot!.provider,
+              err instanceof Error ? err.message : "error"
+            );
+          });
+        runNote = `${bot!.provider}_spawn_started`;
+      } else if (bot) {
+        runNote = `provider_not_registered:${bot.provider}`;
       }
     }
 
