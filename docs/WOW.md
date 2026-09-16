@@ -35,6 +35,8 @@
 
 ### 再現の型
 
+手順1枚: [`docs/retest-byo.md`](./retest-byo.md)。
+
 For each row: steps → expected signal → evidence (screenshot/log, secrets redacted). No PASS without evidence.
 
 ---
