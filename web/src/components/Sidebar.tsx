@@ -3,6 +3,7 @@ import { useChatStore } from '../features/chat/hooks/useChatStore'
 import { CredBadge } from './CredBadge'
 import { UnreadBadge } from './UnreadBadge'
 import './Sidebar.css'
+import './Sidebar.add.css'
 
 type Props = {
   onCreateBot: () => void
@@ -68,9 +69,7 @@ export function Sidebar({ onCreateBot, onEditBot }: Props) {
                       {r.name}
                       {r.subtitle && <span className="sb-row-sub">（{r.subtitle}）</span>}
                     </div>
-                    {bot?.provider ? (
-                      <div className="sb-row-sub">{bot.provider}</div>
-                    ) : null}
+                    {bot?.provider ? <div className="sb-row-sub">{bot.provider}</div> : null}
                   </div>
                   <CredBadge status={cred} />
                   <UnreadBadge kind={r.unread} />
@@ -79,7 +78,7 @@ export function Sidebar({ onCreateBot, onEditBot }: Props) {
                   <button
                     type="button"
                     className="sb-edit"
-                    title="編集"
+                    title="edit"
                     onClick={() => onEditBot(bot.id)}
                   >
                     編集
