@@ -1,18 +1,24 @@
-# oss-bot web (案B UI)
+# web/ — Case B (AI版Slack) UI
 
-Vite + React + TypeScript SPA. AI-Slack 感触のチャット UI。
+S6: AuthGate空状態 · Dispatcher窓口DM上位固定 · Room/DM · Bot Ready/未ログイン · **実WebSocket**（mock本線なし）
 
 ## Run
 
 ```bash
-cd web && npm i && npm run dev
+cd web
+npm i
+npm run dev
 ```
 
-- Default: lands on **参謀（窓口）** DM with seed conversation + approval card.
-- AuthGate demo: open `/?auth=0`
-- WS: `/ws?chatId=` via `VITE_API_BASE` or same-origin (Vite proxies to `:3000`)
+Proxy: `/api` and `/ws` → `http://127.0.0.1:3000`
 
-## Notes
+Token: `VITE_OSS_BOT_TOKEN` or `?token=` or localStorage after AuthGate.
+Demo AuthGate: `?auth=0`
 
-- `useChatStream` uses **real WebSocket** — mockStream is off the main path.
-- Cred labels only: Ready / 未ログイン / doctor_failed (no secrets in UI).
+Default landing: **参謀（窓口）DM** with seed thread (not empty home).
+
+## Contract
+
+- POST `/api/v1/chats/:threadId/messages`
+- WS `/ws?chatId=` — events `token|tool|status|error|done`
+- Selection: `selectedSessionId` = `threads.id`
