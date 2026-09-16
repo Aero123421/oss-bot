@@ -2,18 +2,16 @@ import { createCliProvider } from "./cliProvider.js";
 import { registerProvider } from "./registryCore.js";
 
 const adapter = createCliProvider({
-  id: "claude",
-  purpose: "provider:claude",
-  binaryHints: ["claude", "claude-code"],
-  binEnvKey: "CLAUDE_BIN",
-  buildArgs: (c) => ["-p", c, "--output-format", "text"],
+  id: "kimi",
+  purpose: "provider:kimi",
+  binaryHints: ["kimi"],
+  binEnvKey: "KIMI_BIN",
+  buildArgs: (c) => [c],
 });
 
 registerProvider(adapter);
 
-export { threadEvents } from "./cliProvider.js";
-
-export async function runClaudeForThread(input: {
+export async function runKimiForThread(input: {
   threadId: string;
   botId: string;
   content: string;

@@ -2,18 +2,16 @@ import { createCliProvider } from "./cliProvider.js";
 import { registerProvider } from "./registryCore.js";
 
 const adapter = createCliProvider({
-  id: "claude",
-  purpose: "provider:claude",
-  binaryHints: ["claude", "claude-code"],
-  binEnvKey: "CLAUDE_BIN",
-  buildArgs: (c) => ["-p", c, "--output-format", "text"],
+  id: "pi",
+  purpose: "provider:pi",
+  binaryHints: ["pi"],
+  binEnvKey: "PI_BIN",
+  buildArgs: (c) => [c],
 });
 
 registerProvider(adapter);
 
-export { threadEvents } from "./cliProvider.js";
-
-export async function runClaudeForThread(input: {
+export async function runPiForThread(input: {
   threadId: string;
   botId: string;
   content: string;
