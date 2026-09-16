@@ -1,10 +1,6 @@
 # oss-bot
 
-Open-source on-prem agent platform (P0 scaffold).
-
-## Stack
-
-Node 22 + TypeScript + Hono + SQLite + Docker Compose. Shared token gate (`OSS_BOT_TOKEN`). No Postgres / Redis.
+On-prem agent platform (P0). **Node 22 + TypeScript + Hono + SQLite + Docker bot runtime.** No Postgres / Redis.
 
 ## Quick start
 
@@ -14,6 +10,15 @@ cp .env.example .env
 docker compose up --build
 ```
 
+Bot VM control (**DEV** — mounts docker.sock):
+
+```bash
+export DOCKER_GID="$(getent group docker | cut -d: -f3)"   # required, must not be 0
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+
+`DOCKER_HOST` is set only by the dev overlay, not base compose. Never combine sock overlay with `NODE_ENV=production`.
+
 ```bash
 curl -s localhost:3000/healthz
 curl -s -H "Authorization: Bearer $OSS_BOT_TOKEN" localhost:3000/api/v1/me
@@ -22,7 +27,6 @@ curl -s -H "Authorization: Bearer $OSS_BOT_TOKEN" localhost:3000/api/v1/me
 Local without Docker:
 
 ```bash
-cp .env.example .env
 npm install
 npm run doctor
 npm run dev
@@ -30,12 +34,12 @@ npm run dev
 
 ## Doctor
 
-`npm run doctor` — host / docker / sqlite / token checks.  
+`npm run doctor` — host / docker / sqlite / token / bot-runtime checks.  
 `npm run doctor:ci` — CI mode with `--strict`.
 
 ## Risks
 
-See `RISKS.md`. Do not `docker compose down -v` in production (SQLite data loss).
+See `RISKS.md`. Do not `docker compose down -v` in production (SQLite data loss). Do not use `docker-compose.dev.yml` in production.
 
 ## Dependencies
 

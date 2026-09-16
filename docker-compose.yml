@@ -1,7 +1,10 @@
-# ローカル / 単機オンプレ用。Postgres・Redis なし（SQLite）。
-# リスク: トークン未設定だと起動拒否。data ボリューム削除で DB 消失。
-# ロールバック: 前版 compose に戻して `docker compose up -d --build`
-# データ保持: `docker compose down`（`-v` は使わない）
+# P0: Hono API + SQLite file volume. No Postgres. No Redis.
+# Bot runtime = Docker. Mount docker.sock only via docker-compose.dev.yml (DEV).
+# DOCKER_HOST is NOT set here — only in the dev overlay.
+#
+# Risk: sock ≈ host root. Production must NOT use the dev overlay.
+# Rollback: previous compose + `docker compose up -d --build`
+# Data: `docker compose down` keeps volume; `down -v` DESTROYS SQLite.
 
 name: oss-bot
 
@@ -15,9 +18,10 @@ services:
     env_file:
       - .env
     environment:
+      NODE_ENV: ${NODE_ENV:-production}
       PORT: "3000"
       DATABASE_PATH: /app/data/oss-bot.sqlite
-      # .env の OSS_BOT_TOKEN を必須とする
+      BOT_RUNTIME: docker
     volumes:
       - ossbot-data:/app/data
     healthcheck:

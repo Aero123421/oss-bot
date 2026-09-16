@@ -8,10 +8,17 @@ import path from "node:path";
 const port = Number(process.env.PORT ?? 3000);
 const dbPath = process.env.DATABASE_PATH ?? "./data/oss-bot.sqlite";
 const token = process.env.OSS_BOT_TOKEN ?? "";
+const botRuntime = process.env.BOT_RUNTIME ?? "docker";
+const dockerHostConfigured = Boolean(process.env.DOCKER_HOST);
+const sockOverlay = process.env.DOCKER_SOCK_OVERLAY === "1";
 
 if (process.env.NODE_ENV === "production") {
   if (!token || token.startsWith("change-me")) {
     console.error("OSS_BOT_TOKEN must be a non-default value in production");
+    process.exit(1);
+  }
+  if (sockOverlay) {
+    console.error("DOCKER_SOCK_OVERLAY must not be enabled in production");
     process.exit(1);
   }
 } else if (!token) {
@@ -50,15 +57,36 @@ app.get("/healthz", (c) => {
     const schema = db
       .prepare("SELECT value FROM meta WHERE key = ?")
       .get("schema_version") as { value: string } | undefined;
-    return c.json({ ok, db: ok, schema_version: schema?.value ?? null });
+    return c.json({
+      ok,
+      db: ok,
+      schema_version: schema?.value ?? null,
+      bot_runtime: botRuntime,
+      docker_host_configured: dockerHostConfigured,
+      sock_overlay: sockOverlay,
+    });
   } catch (err) {
     console.error("healthz failed", err);
     return c.json({ ok: false, error: "unavailable" }, 503);
   }
 });
 
-app.get("/api/v1/me", tokenGate, (c) => c.json({ ok: true, auth: "token" }));
+app.get("/api/v1/me", tokenGate, (c) =>
+  c.json({ ok: true, auth: "token", bot_runtime: botRuntime })
+);
+
+app.get("/api/v1/runtime", tokenGate, (c) =>
+  c.json({
+    ok: true,
+    runtime: botRuntime,
+    docker_host_configured: dockerHostConfigured,
+    sock_overlay: sockOverlay,
+    note: "sock overlay via docker-compose.dev.yml only (dev); never expose DOCKER_HOST value",
+  })
+);
 
 serve({ fetch: app.fetch, port }, () => {
-  console.log(`oss-bot listening on :${port} (sqlite=${dbPath})`);
+  console.log(
+    `oss-bot listening on :${port} (sqlite=${dbPath}, bot_runtime=${botRuntime}, sock_overlay=${sockOverlay})`
+  );
 });
