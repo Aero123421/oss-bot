@@ -101,6 +101,8 @@
 - [ ] doctor／Setupが会話または空状態から辿れる
 - [ ] ホスト→ランタイム資格情報ブリッジ：UIは接続状態（未設定／有効／失効など）のみ表示可。生トークン・秘密値の表示・ログ・レスポンス混入はブロッカー。
 - [ ] Dispatcher（参謀）がDM窓口として強調されている
+- [ ] 承認カードに再認証（reauth_required）と doctor失敗（doctor_failed）がある
+- [ ] 未読は ◆要判断 ＞ ●通常（詳細は [unread-priority-visual](./unread-priority-visual.md)）
 
 非ゴール：
 - Mission Control型の多パネル運用ダッシュボード
