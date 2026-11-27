@@ -5,6 +5,7 @@ import { threadEvents } from "./providers/registry.js";
 /** SSE — GET /api/v1/threads/:id/events (and /stream alias). Subscribes to Claude provider emitter. */
 export async function sseThreadEvents(c: Context): Promise<Response> {
   const threadId = c.req.param("id");
+  if (!threadId) return c.json({ error: "not_found" }, 404);
   const encoder = new TextEncoder();
   let closed = false;
   let onEvent: ((evt: StreamEvent) => void) | null = null;
