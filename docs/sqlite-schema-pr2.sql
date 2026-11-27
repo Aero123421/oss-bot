@@ -57,6 +57,15 @@ CREATE TABLE IF NOT EXISTS messages (
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_messages_thread_created ON messages(thread_id, created_at ASC);
+-- The recent-context query walks a thread in reverse insertion order.
+CREATE INDEX IF NOT EXISTS idx_messages_thread_row_order ON messages(thread_id);
+-- Provider context only reads history with defensible audience provenance.
+CREATE TABLE IF NOT EXISTS message_context_recipients (
+  message_id TEXT PRIMARY KEY REFERENCES messages(id) ON DELETE CASCADE,
+  bot_id TEXT NOT NULL,
+  provider TEXT NOT NULL
+);
+
 
 CREATE TABLE IF NOT EXISTS auth_gates (
   id TEXT PRIMARY KEY,

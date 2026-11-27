@@ -3,6 +3,7 @@ import { EventEmitter } from "node:events";
 import { getDb, newId, nowIso } from "../db.js";
 import { credBroker } from "../cred/broker.js";
 import { agentBus } from "../bus.js";
+import { recordPromptRecipient } from "./threadPrompt.js";
 import type { ProviderId, StreamEvent } from "../types.js";
 
 const emitters = new Map<string, EventEmitter>();
@@ -41,6 +42,7 @@ export type ProviderRunInput = {
   threadId: string;
   botId: string;
   content: string;
+  contextPrompt?: string;
 };
 
 export type CliProviderDef = {
@@ -56,7 +58,7 @@ export function createCliProvider(def: CliProviderDef) {
   return {
     id: def.id,
     async run(input: ProviderRunInput): Promise<void> {
-      const { threadId, botId, content } = input;
+      const { threadId, botId, content, contextPrompt } = input;
       emit(threadId, { type: "status", threadId, status: "starting" });
 
       if (process.env.OSS_BOT_PROVIDER_MODE === "mock") {
@@ -115,7 +117,7 @@ export function createCliProvider(def: CliProviderDef) {
       });
 
       await new Promise<void>((resolve) => {
-        const child = spawn(binary, def.buildArgs(content), {
+        const child = spawn(binary, def.buildArgs(contextPrompt ?? content), {
           env: childEnv,
           stdio: ["ignore", "pipe", "pipe"],
         });
@@ -147,12 +149,16 @@ export function createCliProvider(def: CliProviderDef) {
           }
           const messageId = newId("msg");
           const now = nowIso();
-          getDb()
-            .prepare(
+          const db = getDb();
+          db.transaction(() => {
+            db.prepare(
               `INSERT INTO messages (id, thread_id, bot_id, role, content, created_at)
                VALUES (?, ?, ?, 'assistant', ?, ?)`
-            )
-            .run(messageId, threadId, botId, out, now);
+            ).run(messageId, threadId, botId, out, now);
+            if (contextPrompt !== undefined) {
+              recordPromptRecipient(db, messageId, botId, def.id);
+            }
+          })();
           getDb()
             .prepare(`UPDATE threads SET updated_at = ? WHERE id = ?`)
             .run(now, threadId);
