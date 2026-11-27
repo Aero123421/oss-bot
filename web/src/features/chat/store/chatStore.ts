@@ -96,8 +96,12 @@ export const chatStore = {
     rooms: Room[]
     selectedRoomId?: string
     activeBotId?: string
-  }) {
+  }, preserveConversation = false) {
+    const retained = preserveConversation
+      ? input.rooms.find((r) => r.id === state.selectedRoomId)
+      : undefined
     const selectedRoomId =
+      retained?.id ??
       input.selectedRoomId ??
       input.rooms.find((r) => r.pinned)?.id ??
       input.rooms[0]?.id ??
@@ -108,10 +112,17 @@ export const chatStore = {
       rooms: input.rooms,
       selectedRoomId,
       selectedSessionId: sessionId,
-      activeBotId: input.activeBotId ?? input.bots[0]?.id ?? null,
-      messagesBySessionId: {},
-      status: 'idle',
-      error: null,
+      activeBotId:
+        (retained && input.bots.some((b) => b.id === state.activeBotId) ? state.activeBotId : null) ??
+        input.rooms.find((r) => r.id === selectedRoomId)?.botId ??
+        input.activeBotId ?? input.bots[0]?.id ?? null,
+      messagesBySessionId: preserveConversation
+        ? Object.fromEntries(input.rooms.flatMap((room) => {
+            const messages = state.messagesBySessionId[room.id]
+            return messages ? [[room.id, messages]] : []
+          }))
+        : {},
+      ...(retained ? {} : { status: 'idle' as const, error: null }),
     })
   },
 
@@ -175,6 +186,28 @@ export const chatStore = {
         [message.sessionId]: [...list, message],
       },
     })
+  },
+
+  restoreMessages(sessionId: string, saved: Message[]) {
+    if (!state.rooms.some((room) => room.id === sessionId)) return
+    const list = state.messagesBySessionId[sessionId] ?? []
+    const savedIds = new Set(saved.map((m) => m.id))
+    // The response predates any optimistic/streamed messages received in flight.
+    const messages = [...saved, ...list.filter((m) => !savedIds.has(m.id))]
+      .sort((a, b) => a.createdAt - b.createdAt)
+    setState({ messagesBySessionId: { ...state.messagesBySessionId, [sessionId]: messages } })
+  },
+
+  confirmMessage(sessionId: string, localId: string, savedId: string, patch?: Partial<Message>) {
+    const list = state.messagesBySessionId[sessionId] ?? []
+    const alreadyRestored = list.some((m) => m.id === savedId)
+    if (!alreadyRestored && !list.some((m) => m.id === localId)) return
+    const confirmed = list.flatMap((m) => {
+      if (m.id === savedId) return [{ ...m, ...patch }]
+      if (m.id !== localId) return [m]
+      return alreadyRestored ? [] : [{ ...m, ...patch, id: savedId }]
+    })
+    setState({ messagesBySessionId: { ...state.messagesBySessionId, [sessionId]: confirmed } })
   },
 
   patchMessage(sessionId: string, messageId: string, patch: Partial<Message>) {
@@ -326,17 +359,18 @@ export const chatStore = {
   },
 }
 
+const NO_MESSAGES: Message[] = []
+
 export function selectMessagesForSession(sessionId: string | null): Message[] {
-  if (!sessionId) return []
-  return state.messagesBySessionId[sessionId] ?? []
+  return (sessionId ? state.messagesBySessionId[sessionId] : undefined) ?? NO_MESSAGES
 }
 
-export function selectGroups(): Room[] {
-  return state.rooms.filter((r) => r.kind === 'group')
+export function selectGroups(rooms = state.rooms): Room[] {
+  return rooms.filter((r) => r.kind === 'group')
 }
 
-export function selectDms(): Room[] {
-  const dms = state.rooms.filter((r) => r.kind === 'dm')
+export function selectDms(rooms = state.rooms): Room[] {
+  const dms = rooms.filter((r) => r.kind === 'dm')
   return [...dms].sort((a, b) => {
     if (a.pinned && !b.pinned) return -1
     if (!a.pinned && b.pinned) return 1
