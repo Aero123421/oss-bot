@@ -156,3 +156,58 @@ a {
     bottom: 0;
   }
 }
+
+/* Conversation workspace; leave the standalone sign-in surface unchanged. */
+.app-shell {
+  --bg-0: #fbfaf7;
+  --bg-1: #f1f0e9;
+  --bg-2: #fffdf9;
+  --bg-3: #e2ebe4;
+  --bg-hover: #eaece3;
+  --border: #e2e1d9;
+  --border-strong: #c6cdc3;
+  --text: #27312c;
+  --text-muted: #4b5951;
+  --text-dim: #59675e;
+  --accent: #284f42;
+  --accent-soft: #e1ebe4;
+  --info: #285747;
+  --ok: #2e5a43;
+  --ok-soft: #e2eee5;
+  --danger: #932f2f;
+  --danger-soft: #fff1ef;
+  --priority: #754b13;
+  --sidebar-w: 242px;
+  --header-h: 83px;
+  --measure: 730px;
+  --conversation-gutter: clamp(24px,5vw,68px);
+  --shadow: 0 14px 42px rgba(37,53,44,.13);
+  color: var(--text);
+  height: 100dvh;
+  min-height: 0;
+}
+.app-shell :focus-visible {outline: 2px solid #376a55;outline-offset: 3px}
+.app-shell button:disabled {cursor: not-allowed}
+.app-shell .room-header {
+  background: var(--bg-0);
+  backdrop-filter: none;
+  padding: 0 clamp(22px,4vw,49px);
+  position: relative;
+  z-index: 2;
+}
+.app-shell .composer-wrap {border-top:0;background:var(--bg-0);padding: 8px var(--conversation-gutter) max(22px,env(safe-area-inset-bottom));}
+.app-shell ::-webkit-scrollbar-thumb {background:#d1d7cd;border-radius:8px}
+.app-shell .menu-btn {display:none}
+@media (min-width:761px) and (max-width:1024px){.app-shell{--sidebar-w:215px;--conversation-gutter:32px}}
+@media (max-width:760px){
+  .app-shell {--header-h:67px;--conversation-gutter:16px}
+  .app-shell .sidebar:not(.open){visibility:hidden}
+  .app-shell .sidebar {width:min(84vw,312px);transform:translateX(-105%)}
+  .app-shell .sidebar.open{transform:translateX(0)}
+  .app-shell .sidebar-overlay {background:#23332755}
+  .app-shell .room-header{padding:0 13px;gap:9px}
+  .app-shell .menu-btn{display:inline-flex;width:44px;height:44px;flex:none;margin-left:-2px}
+  .app-shell .composer-wrap {padding-bottom:max(12px,env(safe-area-inset-bottom))}
+}
+@media (min-width:761px) { .app-shell .sidebar{visibility:visible;position:relative;inset:auto;transform:none;box-shadow:none}.app-shell .sidebar-overlay{display:none} }
+@media (prefers-reduced-motion:reduce) { .app-shell *, .app-shell *::before, .app-shell *::after {animation:none!important;transition:none!important;scroll-behavior:auto!important} }

@@ -157,7 +157,10 @@ export default function App() {
     <div className="app-shell">
       <div
         className={`sidebar-overlay ${sidebarOpen ? 'visible' : ''}`}
-        onClick={() => chatStore.setSidebarOpen(false)}
+        onClick={() => {
+          chatStore.setSidebarOpen(false)
+          document.getElementById('workspace-menu')?.focus()
+        }}
         aria-hidden
       />
       <Sidebar
