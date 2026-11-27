@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { acceptMessage } from "../dispatcher.js";
 import { getProvider } from "../providers/registry.js";
+import { buildThreadPrompt, recordPromptRecipient } from "../providers/threadPrompt.js";
 import { getDb } from "../db.js";
 import type { Bot } from "../types.js";
 
@@ -32,21 +33,28 @@ dispatcherRoutes.post("/messages", async (c) => {
         ? (getDb().prepare("SELECT * FROM bots WHERE id = ?").get(thread.active_bot_id) as Bot)
         : undefined;
       const adapter = bot ? getProvider(bot.provider) : undefined;
-      if (adapter) {
+      if (adapter && bot) {
+        let prompt: { content: string; contextPrompt?: string } = { content: body.content ?? "" };
+        if (process.env.OSS_BOT_THREAD_CONTEXT === "1" &&
+            process.env.OSS_BOT_PROVIDER_MODE !== "mock") {
+          const db = getDb();
+          prompt = buildThreadPrompt(db, result.threadId, result.messageId, bot.id, bot.provider);
+          recordPromptRecipient(db, result.messageId, bot.id, bot.provider);
+        }
         void adapter
           .run({
             threadId: result.threadId,
-            botId: bot!.id,
-            content: body.content ?? "",
+            botId: bot.id,
+            ...prompt,
           })
           .catch((err) => {
             console.error(
               "provider run failed",
-              bot!.provider,
+              bot.provider,
               err instanceof Error ? err.message : "error"
             );
           });
-        runNote = `${bot!.provider}_spawn_started`;
+        runNote = `${bot.provider}_spawn_started`;
       } else if (bot) {
         runNote = `provider_not_registered:${bot.provider}`;
       }

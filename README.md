@@ -25,6 +25,25 @@ curl -s -H "Authorization: Bearer $OSS_BOT_TOKEN" localhost:3000/api/v1/me
 
 Stop: `docker compose down` (keeps SQLite volume). Do **not** use `down -v` unless you mean to wipe data.
 
+### Conversation context (opt-in)
+
+By default a provider receives only the current message. Set
+`OSS_BOT_THREAD_CONTEXT=1` in the API environment (or Compose `.env`) to also
+send recent turns to the selected provider. Enable this only if thread
+participants agree to share their recent chat with that provider.
+
+Each run still sends a single prompt. At most 12 earlier user/assistant
+messages from the same chat are included, in saved order. Inclusion stops at
+an older unrecorded turn or a different bot/provider, so changing the chat's
+recipient does not transfer its prior transcript. Historical system rows
+and other chats are never included. A prompt with history is at most 16 KiB
+UTF-8; if the latest earlier turn does not fit, only the current message is
+sent. Existing transcripts are not backfilled, and provider mock mode does
+not record or replay context. This does not resume a provider session or
+provide account-wide memory. Provider account, endpoint, and local CLI
+configuration changes under the same provider ID are not detected; leave
+this option off unless the operator trusts the selected provider account.
+
 ### UI-only dev（optional）
 
 ```bash
