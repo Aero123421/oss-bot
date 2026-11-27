@@ -1,71 +1,18 @@
-.composer-gate {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 8px 10px;
-  margin-bottom: var(--space);
-}
-.composer-retry {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space);
-  font-size: 0.8rem;
-  color: var(--danger);
-  margin-bottom: var(--space);
-}
-.composer-retry button {
-  height: 28px;
-  padding: 0 12px;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(224, 112, 112, 0.4);
-  color: var(--danger);
-}
-.composer {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space);
-  background: var(--bg-2);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  padding: 10px 10px 10px 14px;
-}
-.composer textarea {
-  flex: 1;
-  resize: none;
-  border: none;
-  outline: none;
-  background: transparent;
-  min-height: 24px;
-  max-height: 140px;
-  line-height: 1.45;
-  color: var(--text);
-}
-.composer textarea::placeholder {
-  color: var(--text-dim);
-}
-.composer textarea:disabled {
-  opacity: 0.55;
-}
-.send-btn {
-  flex-shrink: 0;
-  height: 36px;
-  min-width: 64px;
-  padding: 0 14px;
-  border-radius: var(--radius-sm);
-  background: var(--accent);
-  color: #1a1408;
-  font-weight: 600;
-  font-size: 0.85rem;
-}
-.send-btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-.send-btn.stop {
-  background: transparent;
-  border: 1px solid var(--border-strong);
-  color: var(--text);
-}
+.composer-inner{width:min(100%,var(--measure));margin:0 auto}
+.composer-gate,.composer-retry{font-size:12px;color:var(--text-muted);margin:0 0 7px}
+.composer-retry{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.composer-retry button{min-height:38px;color:var(--accent);text-decoration:underline;text-underline-offset:3px}
+.composer{background:var(--bg-2);border:1px solid var(--border-strong);border-radius:13px;padding:9px 10px 8px 13px;box-shadow:0 2px 9px #263a2b0b}
+.composer:focus-within{border-color:#719080;box-shadow:0 0 0 2px #cdded2}
+.composer textarea{display:block;width:100%;min-height:45px;max-height:130px;field-sizing:content;resize:none;border:0;padding:3px 4px 5px 0;background:none;color:var(--text);font-size:15px;line-height:1.55}
+.app-shell .composer textarea:focus-visible{outline:none}
+.composer textarea::placeholder{color:var(--text-dim)}
+.composer-actions{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.composer-target{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text-dim)}
+.composer-target:not(:empty)::before{content:"送信先："}
+.send-btn{display:flex;align-items:center;gap:6px;justify-content:center;flex:none;min-height:38px;padding:0 12px;border-radius:8px;background:var(--accent);color:#fff;font-size:13px;font-weight:700}
+.send-btn:hover:not(:disabled){background:#1b4034}
+.send-btn:disabled{background:#e1e9e2;color:#52665a}
+.send-btn.stop{background:var(--bg-1);color:var(--text);border:1px solid var(--border-strong)}
+.send-btn.stop:hover{background:var(--bg-3)}
+@media(max-width:760px){.composer{padding-top:7px}.composer textarea{font-size:16px;min-height:49px}.send-btn,.composer-retry button{min-height:44px}}

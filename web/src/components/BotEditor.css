@@ -80,3 +80,18 @@
 .bot-editor-actions button[type='submit']:disabled {
   opacity: 0.4;
 }
+
+.app-shell .bot-editor {
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+.app-shell .bot-field input,
+.app-shell .bot-field select {
+  background: var(--bg-0);
+  border-color: var(--border-strong);
+  min-height: 42px;
+}
+.app-shell .bot-editor-actions button,
+.app-shell .bot-editor-close {min-height: 42px}
+.app-shell .bot-editor-actions button[type='submit'] {color:#fff}
+@media(max-width:760px){.app-shell .bot-field input,.app-shell .bot-field select{font-size:16px;min-height:44px}}

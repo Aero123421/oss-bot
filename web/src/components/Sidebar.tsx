@@ -1,10 +1,8 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { chatStore, selectDms, selectGroups } from '../features/chat'
 import { useChatStore } from '../features/chat/hooks/useChatStore'
-import { CredBadge } from './CredBadge'
 import { UnreadBadge } from './UnreadBadge'
 import './Sidebar.css'
-import './Sidebar.add.css'
 
 type Props = {
   onCreateBot: () => void
@@ -19,23 +17,64 @@ export function Sidebar({ onCreateBot, onEditBot }: Props) {
   const rooms = useChatStore((s) => s.rooms)
   const groups = useMemo(() => selectGroups(rooms), [rooms])
   const dms = useMemo(() => selectDms(rooms), [rooms])
+  const availableActions = useMemo(() => needActions.filter((action) => rooms.some((room) => room.id === action.roomId)), [needActions, rooms])
+
+  const sidebarRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    if (!open || !window.matchMedia('(max-width: 760px)').matches) return
+    const sidebar = sidebarRef.current
+    if (!sidebar) return
+    ;(sidebar.querySelector<HTMLButtonElement>('[aria-current="page"]') ?? sidebar.querySelector<HTMLButtonElement>('button'))?.focus()
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        chatStore.setSidebarOpen(false)
+        document.getElementById('workspace-menu')?.focus()
+      } else if (event.key === 'Tab') {
+        const controls = [...sidebar.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')]
+        if (!controls.length) return
+        const first = controls[0]
+        const last = controls[controls.length - 1]
+        const focused = document.activeElement
+        if ((!event.shiftKey && focused === last) || (event.shiftKey && focused === first) || !sidebar.contains(focused)) {
+          event.preventDefault()
+          ;(event.shiftKey ? last : first).focus()
+        }
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open])
+
+  const select = (roomId: string) => {
+    const small = open && window.matchMedia('(max-width: 760px)').matches
+    chatStore.selectRoom(roomId)
+    if (small) requestAnimationFrame(() => document.querySelector<HTMLElement>('.rh-title')?.focus({ preventScroll: true }))
+  }
+
+  const openEditor = (show: () => void) => {
+    if (open && window.matchMedia('(max-width: 760px)').matches) chatStore.setSidebarOpen(false)
+    show()
+    requestAnimationFrame(() => document.querySelector<HTMLInputElement>('.bot-editor input')?.focus())
+  }
 
   return (
-    <aside className={`sidebar ${open ? 'open' : ''}`} aria-label="sidebar">
+    <aside className={`sidebar ${open ? 'open' : ''}`} id="workspace-sidebar" ref={sidebarRef} aria-label="会話一覧">
       <div className="sb-head">
-        <div className="sb-ws">Workspace</div>
-        <div className="sb-title">oss-bot</div>
+        <span className="sb-mark" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M3 12 9 6l6 6-6 6-6-6Zm9 0 3-3 6 6-3 3-6-6Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/></svg></span>
+        <div><div className="sb-title">OSS Bot</div><div className="sb-ws">ワークスペース</div></div>
       </div>
 
-      <div className="sb-scroll">
-        <section className="sb-section" aria-label="rooms">
+      <nav className="sb-scroll" aria-label="ルームとBot">
+        {groups.length > 0 && <section className="sb-section" aria-label="ルーム">
           <div className="sb-section-label">ルーム</div>
           {groups.map((r) => (
             <button
               key={r.id}
               type="button"
               className={`sb-row ${selectedRoomId === r.id ? 'active' : ''}`}
-              onClick={() => chatStore.selectRoom(r.id)}
+              aria-current={selectedRoomId === r.id ? 'page' : undefined}
+              onClick={() => select(r.id)}
             >
               <div className="sb-row-main">
                 <div className="sb-row-name">
@@ -46,13 +85,13 @@ export function Sidebar({ onCreateBot, onEditBot }: Props) {
               <UnreadBadge kind={r.unread} />
             </button>
           ))}
-        </section>
+        </section>}
 
-        <section className="sb-section" aria-label="dms">
+        <section className="sb-section" aria-label="Bot">
           <div className="sb-section-label">
-            DM
-            <button type="button" className="sb-add-bot" onClick={onCreateBot}>
-              + Bot
+            Bot
+            <button type="button" className="sb-add-bot" onClick={() => openEditor(onCreateBot)} aria-label="Botを追加" title="Botを追加">
+              +
             </button>
           </div>
           {dms.map((r) => {
@@ -63,27 +102,26 @@ export function Sidebar({ onCreateBot, onEditBot }: Props) {
                 <button
                   type="button"
                   className={`sb-row ${selectedRoomId === r.id ? 'active' : ''}`}
-                  onClick={() => chatStore.selectRoom(r.id)}
+                  aria-current={selectedRoomId === r.id ? 'page' : undefined}
+                  onClick={() => select(r.id)}
                 >
+                  <span className="sb-avatar" aria-hidden="true">{r.name.slice(0, 1)}</span>
                   <div className="sb-row-main">
-                    <div className="sb-row-name">
-                      {r.pinned && <span className="sb-pin" title="Dispatcher">★</span>}
-                      {r.name}
-                      {r.subtitle && <span className="sb-row-sub">（{r.subtitle}）</span>}
-                    </div>
-                    {bot?.provider ? <div className="sb-row-sub">{bot.provider}</div> : null}
+                    <div className="sb-row-name">{r.name}</div>
+                    {r.subtitle && <div className="sb-row-sub">{r.subtitle}</div>}
                   </div>
-                  <CredBadge status={cred} />
+                  {cred && cred !== 'Ready' && <span className="sb-connection" aria-label={cred} title={cred}>!</span>}
                   <UnreadBadge kind={r.unread} />
                 </button>
                 {bot ? (
                   <button
                     type="button"
                     className="sb-edit"
-                    title="edit"
-                    onClick={() => onEditBot(bot.id)}
+                    title="Botを編集"
+                    aria-label={`${bot.name}を編集`}
+                    onClick={() => openEditor(() => onEditBot(bot.id))}
                   >
-                    編集
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m14 6 4 4M5 19l4-.8L20 7l-4-4L5 14.2 5 19Z"/></svg>
                   </button>
                 ) : null}
               </div>
@@ -91,24 +129,22 @@ export function Sidebar({ onCreateBot, onEditBot }: Props) {
           })}
         </section>
 
-        <section className="sb-section" aria-label="needs attention">
-          <div className="sb-section-label">要対応 ({needActions.length})</div>
+        {availableActions.length > 0 && <section className="sb-section" aria-label="要対応">
+          <div className="sb-section-label">要対応 ({availableActions.length})</div>
           <div className="need-list">
-            {needActions.map((n) => (
+            {availableActions.map((n) => (
               <button
                 key={n.id}
                 type="button"
                 className={`need-item ${n.priority === 'P0' ? 'p0' : ''}`}
-                onClick={() => chatStore.selectRoom(n.roomId)}
+                onClick={() => select(n.roomId)}
               >
                 {n.label}
               </button>
             ))}
           </div>
-        </section>
-      </div>
-
-      <footer className="sb-foot">設定ツリーなし</footer>
+        </section>}
+      </nav>
     </aside>
   )
 }
