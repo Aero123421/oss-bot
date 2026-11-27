@@ -14,6 +14,8 @@ import {
 import { botsRoutes } from "./routes/bots.js";
 import { groupsRoutes } from "./routes/groups.js";
 import { threadsRoutes } from "./routes/threads.js";
+import { createThreadJobRoutes } from "./routes/threadJobs.js";
+import { ThreadJobs } from "./jobs/threadJobs.js";
 import { dispatcherRoutes } from "./routes/dispatcher.js";
 import { credRoutes } from "./routes/cred.js";
 import { capabilitiesRoutes } from "./routes/capabilities.js";
@@ -35,6 +37,8 @@ if (process.env.NODE_ENV === "production" && sockOverlay) {
 
 const db = openDb(dbPath);
 migrateRuntime(db);
+const threadJobs = new ThreadJobs(db);
+threadJobs.markInterrupted();
 
 const app = new Hono();
 
@@ -133,6 +137,7 @@ app.get("/api/v1/runtime/:id/status", (c) => {
 app.route("/api/v1/bots", botsRoutes);
 app.route("/api/v1/groups", groupsRoutes);
 app.route("/api/v1/threads", threadsRoutes);
+app.route("/api/v1/threads", createThreadJobRoutes(threadJobs));
 app.route("/api/v1/dispatcher", dispatcherRoutes);
 app.route("/api/v1/cred", credRoutes);
 // Capability exec: both paths for FE + prior evidence URLs
