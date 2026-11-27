@@ -36,7 +36,7 @@ type EditorState =
   | { mode: 'edit'; bot: Bot }
   | null
 
-async function hydrateFromCp() {
+async function hydrateFromCp(preserveConversation = false) {
   const [botsRes, threadsRes, groupsRes, providersRes] = await Promise.all([
     apiFetch<{ bots: CpBot[] }>('/api/v1/bots'),
     apiFetch<{ threads: CpThread[] }>('/api/v1/threads'),
@@ -81,18 +81,15 @@ async function hydrateFromCp() {
     }
   })
 
-  if (roomsFromThreads.length) {
-    chatStore.replaceWorkspace({
-      bots,
-      rooms: roomsFromThreads,
-      selectedRoomId:
-        roomsFromThreads.find((r) => r.pinned)?.id ??
-        roomsFromThreads.find((r) => r.kind === 'dm')?.id ??
-        roomsFromThreads[0]?.id,
-      activeBotId: dispatcher?.id ?? bots[0]?.id,
-    })
-    void groupsRes
-  }
+  chatStore.replaceWorkspace({
+    bots,
+    rooms: roomsFromThreads,
+    selectedRoomId:
+      roomsFromThreads.find((r) => r.pinned)?.id ??
+      roomsFromThreads.find((r) => r.kind === 'dm')?.id,
+    activeBotId: dispatcher?.id,
+  }, preserveConversation)
+  void groupsRes
 }
 
 export default function App() {
@@ -104,11 +101,11 @@ export default function App() {
   const bots = useChatStore((s) => s.bots)
 
   const enter = useCallback(async () => {
-    setAuthed(true)
     try {
       await hydrateFromCp()
+      setAuthed(true)
     } catch {
-      /* composer surfaces API errors on send */
+      setHint('会話一覧を読み込めませんでした。もう一度お試しください。')
     }
   }, [])
 
@@ -179,7 +176,7 @@ export default function App() {
         <BotEditor
           mode="create"
           onClose={() => setEditor(null)}
-          onSaved={() => void hydrateFromCp()}
+          onSaved={() => void hydrateFromCp(true)}
         />
       ) : null}
       {editor?.mode === 'edit' ? (
@@ -187,7 +184,7 @@ export default function App() {
           mode="edit"
           bot={editor.bot}
           onClose={() => setEditor(null)}
-          onSaved={() => void hydrateFromCp()}
+          onSaved={() => void hydrateFromCp(true)}
         />
       ) : null}
     </div>

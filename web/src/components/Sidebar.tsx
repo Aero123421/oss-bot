@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { chatStore, selectDms, selectGroups } from '../features/chat'
 import { useChatStore } from '../features/chat/hooks/useChatStore'
 import { CredBadge } from './CredBadge'
@@ -15,8 +16,9 @@ export function Sidebar({ onCreateBot, onEditBot }: Props) {
   const selectedRoomId = useChatStore((s) => s.selectedRoomId)
   const needActions = useChatStore((s) => s.needActions)
   const bots = useChatStore((s) => s.bots)
-  const groups = useChatStore(() => selectGroups())
-  const dms = useChatStore(() => selectDms())
+  const rooms = useChatStore((s) => s.rooms)
+  const groups = useMemo(() => selectGroups(rooms), [rooms])
+  const dms = useMemo(() => selectDms(rooms), [rooms])
 
   return (
     <aside className={`sidebar ${open ? 'open' : ''}`} aria-label="sidebar">

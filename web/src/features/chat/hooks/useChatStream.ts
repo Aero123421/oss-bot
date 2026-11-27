@@ -40,13 +40,7 @@ function applyCpEvent(ev: CpStreamEvent, assistantId: string) {
       })
       break
     case 'message':
-      chatStore.applyStreamEvent({
-        type: 'token',
-        chatId,
-        messageId: assistantId,
-        text: '',
-      })
-      chatStore.patchMessage(chatId, assistantId, {
+      chatStore.confirmMessage(chatId, assistantId, ev.messageId, {
         content: ev.content,
         status: 'complete',
       })
@@ -102,7 +96,7 @@ export function useChatStream(): UseChatStreamResult {
     chatStore.setWsState('closed')
   }, [])
 
-  const startStream = useCallback(async (sessionId: string, assistantId: string, userText: string) => {
+  const startStream = useCallback(async (sessionId: string, assistantId: string, userId: string, userText: string) => {
     unsubRef.current?.()
     inflightAssistantId.current = assistantId
 
@@ -130,7 +124,7 @@ export function useChatStream(): UseChatStreamResult {
 
     try {
       chatStore.setWsState('open')
-      await apiFetch<{ threadId: string; messageId: string }>('/api/v1/dispatcher/messages', {
+      const accepted = await apiFetch<{ threadId: string; messageId: string }>('/api/v1/dispatcher/messages', {
         method: 'POST',
         body: JSON.stringify({
           content: userText,
@@ -139,6 +133,7 @@ export function useChatStream(): UseChatStreamResult {
           run: true,
         }),
       })
+      chatStore.confirmMessage(sessionId, userId, accepted.messageId)
     } catch (e) {
       unsubRef.current?.()
       unsubRef.current = null
@@ -183,7 +178,7 @@ export function useChatStream(): UseChatStreamResult {
       const userId = newId('usr')
       const assistantId = newId('asst')
       chatStore.beginUserTurn(sessionId, text, userId, assistantId, bot)
-      await startStream(sessionId, assistantId, text)
+      await startStream(sessionId, assistantId, userId, text)
     },
     [startStream],
   )
